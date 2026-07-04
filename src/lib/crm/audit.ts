@@ -8,6 +8,7 @@ export type AuditFilter = {
   recordId?: string;
   limit?: number;
   before?: string; // changed_at cursor for paging
+  beforeId?: string; // id tiebreak — one transaction stamps many rows with the same changed_at
 };
 
 export async function listAuditLog(db: Db, filter: AuditFilter = {}): Promise<AuditLogRow[]> {
@@ -15,10 +16,21 @@ export async function listAuditLog(db: Db, filter: AuditFilter = {}): Promise<Au
     .from("audit_log")
     .select("*")
     .order("changed_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(filter.limit ?? 100);
   if (filter.tableName) query = query.eq("table_name", filter.tableName);
   if (filter.recordId) query = query.eq("record_id", filter.recordId);
-  if (filter.before) query = query.lt("changed_at", filter.before);
+  if (filter.before) {
+    // Keyset pagination on (changed_at, id): a plain lt(changed_at) would skip
+    // rows sharing the boundary timestamp (e.g. a whole import transaction).
+    if (filter.beforeId) {
+      query = query.or(
+        `changed_at.lt."${filter.before}",and(changed_at.eq."${filter.before}",id.lt."${filter.beforeId}")`,
+      );
+    } else {
+      query = query.lt("changed_at", filter.before);
+    }
+  }
   const { data, error } = await query;
   return assertOk(data, error, "Loading audit log");
 }

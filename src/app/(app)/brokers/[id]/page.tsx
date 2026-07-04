@@ -20,13 +20,11 @@ export default async function BrokerPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const supabase = await createClient();
 
-  let broker: BrokerDetail;
-  let driveLinks: DriveLinkRow[];
-  try {
-    [broker, driveLinks] = await Promise.all([getBroker(supabase, id), listDriveLinks(supabase, "broker", id)]);
-  } catch {
-    notFound();
-  }
+  const [broker, driveLinks]: [BrokerDetail | null, DriveLinkRow[]] = await Promise.all([
+    getBroker(supabase, id),
+    listDriveLinks(supabase, "broker", id),
+  ]);
+  if (!broker) notFound();
 
   const overdue = broker.next_action_date != null && daysBetween(todayISO(), broker.next_action_date) < 0;
 

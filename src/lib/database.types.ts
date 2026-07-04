@@ -68,6 +68,7 @@ export type DealRow = RowMeta & {
   settlement_date: string | null;
   loan_term_months: number | null;
   maturity_date: string | null;
+  closed_at: string | null; // trigger-maintained: when the deal left 'live'
   notes: string | null;
 };
 

@@ -144,7 +144,9 @@ describe.skipIf(!enabled)("database behaviour (local Supabase)", () => {
     const broker = await createBroker(`Last Contact Broker ${runSuffix}`);
     expect(broker.last_contact_date).toBeNull();
 
-    // Back-dated interaction → last_contact_date lands on that (UTC) date.
+    // Back-dated interaction → last_contact_date lands on that date (the
+    // trigger derives the calendar date in Australia/Sydney; 12:00Z is 22-23h
+    // Sydney, same calendar day).
     const { data: first, error: e1 } = await db
       .from("interactions")
       .insert({

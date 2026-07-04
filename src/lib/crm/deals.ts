@@ -47,13 +47,17 @@ export async function listLoanBook(db: Db): Promise<(DealWithBroker & { key_date
     .sort((a, b) => (a.maturity_date ?? "9999-12-31").localeCompare(b.maturity_date ?? "9999-12-31"));
 }
 
-export async function getDeal(db: Db, id: string): Promise<DealDetail> {
+// Returns null when the deal doesn't exist; throws on real failures —
+// callers must not turn a database outage into a 404.
+export async function getDeal(db: Db, id: string): Promise<DealDetail | null> {
   const { data, error } = await db
     .from("deals")
     .select(`${DEAL_WITH_BROKER}, key_dates(*)`)
     .eq("id", id)
-    .single<DealWithBroker & { key_dates: KeyDateRow[] }>();
-  const deal = assertOk(data, error, "Loading deal");
+    .maybeSingle<DealWithBroker & { key_dates: KeyDateRow[] }>();
+  if (error) throw new Error(`Loading deal: ${error.message}`);
+  if (!data) return null;
+  const deal = data;
 
   const links = await db
     .from("drive_links")

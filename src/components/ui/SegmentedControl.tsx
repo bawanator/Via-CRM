@@ -20,7 +20,7 @@ export function SegmentedControl<T extends string>({
           role="tab"
           aria-selected={value === opt.value}
           onClick={() => onChange(opt.value)}
-          className={`text-footnote min-h-8 flex-1 rounded-md px-3 font-medium transition-colors ${
+          className={`text-footnote min-h-11 flex-1 rounded-md px-3 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-blue ${
             value === opt.value ? "bg-elevated text-label shadow-sm" : "text-label-2"
           }`}
         >

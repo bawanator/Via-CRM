@@ -104,6 +104,9 @@ create table public.deals (
   settlement_date date,
   loan_term_months integer check (loan_term_months is null or loan_term_months > 0),
   maturity_date date,
+  -- When the deal left 'live' (trigger-maintained). Gives last_deal_outcome a
+  -- stable ordering that unrelated edits to old closed deals can't disturb.
+  closed_at timestamptz,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -181,8 +184,8 @@ alter table public.google_oauth_tokens enable row level security;
 create policy "own tokens only"
   on public.google_oauth_tokens for all
   to authenticated
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
+  using (user_id = auth.uid() and public.is_allowed())
+  with check (user_id = auth.uid() and public.is_allowed());
 
 -- ---------------------------------------------------------------------------
 -- Audit log
@@ -295,7 +298,8 @@ end;
 $$;
 
 -- Keep brokers.last_contact_date fresh. greatest() means a back-dated
--- interaction can never regress the date.
+-- interaction can never regress the date. The calendar date is taken in
+-- Australia/Sydney — a 9am AEST call must not land on yesterday's UTC date.
 create or replace function public.bump_last_contact()
 returns trigger
 language plpgsql
@@ -304,9 +308,9 @@ set search_path = public
 as $$
 begin
   update public.brokers
-  set last_contact_date = greatest(coalesce(last_contact_date, '0001-01-01'::date), (new.occurred_at at time zone 'UTC')::date)
+  set last_contact_date = greatest(coalesce(last_contact_date, '0001-01-01'::date), (new.occurred_at at time zone 'Australia/Sydney')::date)
   where id = new.broker_id
-    and (last_contact_date is null or last_contact_date < (new.occurred_at at time zone 'UTC')::date);
+    and (last_contact_date is null or last_contact_date < (new.occurred_at at time zone 'Australia/Sydney')::date);
   return new;
 end;
 $$;
@@ -314,6 +318,7 @@ $$;
 -- Derived date arithmetic: maturity = settlement + term months.
 -- Recomputes when settlement/term change, unless maturity_date was explicitly
 -- changed in the same statement (manual override, e.g. an extension).
+-- Clearing either input clears the derived value rather than leaving it stale.
 create or replace function public.sync_maturity_date()
 returns trigger
 language plpgsql
@@ -326,11 +331,28 @@ begin
   else
     if new.maturity_date is not distinct from old.maturity_date
        and (new.settlement_date is distinct from old.settlement_date
-            or new.loan_term_months is distinct from old.loan_term_months)
-       and new.settlement_date is not null
-       and new.loan_term_months is not null then
-      new.maturity_date := (new.settlement_date + make_interval(months => new.loan_term_months))::date;
+            or new.loan_term_months is distinct from old.loan_term_months) then
+      if new.settlement_date is not null and new.loan_term_months is not null then
+        new.maturity_date := (new.settlement_date + make_interval(months => new.loan_term_months))::date;
+      else
+        new.maturity_date := null;
+      end if;
     end if;
+  end if;
+  return new;
+end;
+$$;
+
+-- Stamp deals.closed_at when a deal leaves the live pipeline; clear on reopen.
+create or replace function public.sync_closed_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.status = 'live' then
+    new.closed_at := null;
+  elsif new.closed_at is null or (tg_op = 'UPDATE' and old.status = 'live') then
+    new.closed_at := now();
   end if;
   return new;
 end;
@@ -353,6 +375,8 @@ create trigger a_set_row_meta before insert or update on public.interactions
 
 create trigger b_sync_maturity before insert or update on public.deals
   for each row execute function public.sync_maturity_date();
+create trigger b_sync_closed_at before insert or update on public.deals
+  for each row execute function public.sync_closed_at();
 
 create trigger z_audit after insert or update or delete on public.brokers
   for each row execute function public.audit_changes();
@@ -365,7 +389,9 @@ create trigger z_audit after insert or update or delete on public.drive_links
 create trigger z_audit after insert or update or delete on public.interactions
   for each row execute function public.audit_changes();
 
-create trigger z_bump_last_contact after insert on public.interactions
+-- INSERT OR UPDATE: the Gmail sync upserts, and a thread that gained a reply
+-- takes the ON CONFLICT UPDATE path — that newer occurred_at must still bump.
+create trigger z_bump_last_contact after insert or update on public.interactions
   for each row execute function public.bump_last_contact();
 
 -- ---------------------------------------------------------------------------
@@ -393,8 +419,8 @@ create policy "allowlisted full access" on public.interactions
 
 -- ---------------------------------------------------------------------------
 -- Derived broker stats — computed on read, never stored, cannot drift.
--- "Most recent closed deal" orders by settlement date when present, otherwise
--- by when the deal row was last touched (a status change bumps updated_at).
+-- "Most recent closed deal" orders by closed_at (trigger-stamped when a deal
+-- leaves the live pipeline), so editing an old closed deal can't flip it.
 -- ---------------------------------------------------------------------------
 
 create view public.broker_stats
@@ -408,7 +434,7 @@ select
     select d2.status
     from public.deals d2
     where d2.broker_id = b.id and d2.status <> 'live'
-    order by coalesce(d2.settlement_date::timestamptz, d2.updated_at) desc
+    order by coalesce(d2.closed_at, d2.updated_at) desc
     limit 1
   ) as last_deal_outcome
 from public.brokers b

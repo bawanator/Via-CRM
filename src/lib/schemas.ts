@@ -30,9 +30,16 @@ const optionalEmail = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? null : typeof v === "string" ? v.trim().toLowerCase() : v),
   z.string().email().nullable().optional(),
 );
+// http(s) only — a stored javascript:/data: URL would become a live href.
+const httpUrl = z
+  .string()
+  .trim()
+  .url()
+  .max(2_000)
+  .refine((u) => /^https?:\/\//i.test(u), "Must be an http(s) URL");
 const optionalUrl = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? null : v),
-  z.string().url().max(2_000).nullable().optional(),
+  httpUrl.nullable().optional(),
 );
 
 export const brokerInputSchema = z.object({
@@ -42,7 +49,8 @@ export const brokerInputSchema = z.object({
   phone: optionalText,
   linkedin_url: optionalUrl,
   stage: brokerStageSchema.optional(),
-  last_contact_date: optionalDate.optional(),
+  // last_contact_date is deliberately absent: it is trigger-maintained from
+  // interactions and must never be hand-set (UI, MCP, or import).
   next_action: optionalText,
   next_action_date: optionalDate.optional(),
   notes: optionalText,
@@ -94,7 +102,7 @@ export const driveLinkInputSchema = z.object({
   parent_type: linkParentTypeSchema,
   parent_id: z.string().uuid(),
   label: z.string().trim().min(1, "Label is required").max(300),
-  url: z.string().trim().url().max(2_000),
+  url: httpUrl,
 });
 
 export const interactionInputSchema = z.object({

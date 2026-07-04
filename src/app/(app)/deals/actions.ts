@@ -48,6 +48,7 @@ export async function createDealAction(raw: unknown): Promise<
 
     // Stats before insert; the new deal counts as +1 submitted and +1 live.
     const broker = await getBroker(supabase, input.broker_id);
+    if (!broker) return { ok: false, error: "Broker not found" };
     const deal = await createDeal(supabase, input);
 
     const suggested = suggestBrokerPromotion({

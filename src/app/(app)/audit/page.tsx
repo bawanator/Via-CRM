@@ -37,6 +37,8 @@ export default async function AuditPage({
   const record = recordParam && isUuid(recordParam) ? recordParam : undefined;
   const beforeParam = first(params.before);
   const before = beforeParam && !Number.isNaN(Date.parse(beforeParam)) ? beforeParam : undefined;
+  const beforeIdParam = first(params.beforeId);
+  const beforeId = beforeIdParam && isUuid(beforeIdParam) ? beforeIdParam : undefined;
 
   const supabase = await createClient();
   const raw = await listAuditLog(supabase, {
@@ -44,6 +46,7 @@ export default async function AuditPage({
     recordId: record,
     limit: PAGE_SIZE,
     before,
+    beforeId,
   });
 
   // Action/source are filtered in code — fine at this scale, keeps the data
@@ -70,6 +73,7 @@ export default async function AuditPage({
     if (action) next.set("action", action);
     if (source) next.set("source", source);
     next.set("before", raw[raw.length - 1].changed_at);
+    next.set("beforeId", raw[raw.length - 1].id);
     loadMoreHref = `/audit?${next.toString()}`;
   }
 
@@ -85,8 +89,20 @@ export default async function AuditPage({
 
       {entries.length === 0 ? (
         <EmptyState
-          title={hasFilters ? "No changes match the current filters." : "No changes recorded yet."}
-          hint={hasFilters ? undefined : "Changes to brokers, deals, key dates, links and interactions appear here."}
+          title={
+            hasMore
+              ? `Nothing matching in the latest ${PAGE_SIZE} changes.`
+              : hasFilters
+                ? "No changes match the current filters."
+                : "No changes recorded yet."
+          }
+          hint={
+            hasMore
+              ? "Load More keeps searching further back."
+              : hasFilters
+                ? undefined
+                : "Changes to brokers, deals, key dates, links and interactions appear here."
+          }
         />
       ) : (
         [...groups.entries()].map(([day, dayEntries]) => (

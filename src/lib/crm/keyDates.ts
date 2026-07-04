@@ -1,5 +1,5 @@
 import type { KeyDateInsert, KeyDateRow, KeyDateUpdate } from "@/lib/database.types";
-import { addDaysISO, todayISO } from "@/lib/dates";
+import { addDaysISO, daysBetween, todayISO } from "@/lib/dates";
 import { assertOk, type Db } from "@/lib/crm/db";
 
 export type UpcomingKeyDate = KeyDateRow & {
@@ -25,14 +25,22 @@ export async function deleteKeyDate(db: Db, id: string): Promise<void> {
   if (error) throw new Error(`Deleting key date: ${error.message}`);
 }
 
-// Incomplete key dates due within `daysAhead` days (or already overdue).
+// Incomplete key dates that are overdue, due within `daysAhead` days, or
+// inside their own remind_days_before window (whichever is more generous) —
+// a date with a 30-day reminder must surface 30 days out, not at the global
+// 14-day horizon.
 export async function listUpcomingKeyDates(db: Db, daysAhead: number): Promise<UpcomingKeyDate[]> {
+  const today = todayISO();
   const { data, error } = await db
     .from("key_dates")
     .select("*, deal:deals(id, name, status)")
     .eq("completed", false)
-    .lte("due_date", addDaysISO(todayISO(), daysAhead))
+    .lte("due_date", addDaysISO(today, 400)) // sane outer bound; per-row filter below
     .order("due_date")
     .returns<UpcomingKeyDate[]>();
-  return assertOk(data, error, "Listing upcoming key dates");
+  const rows = assertOk(data, error, "Listing upcoming key dates");
+  return rows.filter((k) => {
+    const daysUntil = daysBetween(today, k.due_date);
+    return daysUntil <= Math.max(daysAhead, k.remind_days_before);
+  });
 }

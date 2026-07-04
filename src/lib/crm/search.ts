@@ -10,10 +10,20 @@ export type SearchResult = {
 
 // Global cmd-K search: simple ilike across brokers and deals. No search
 // infrastructure — two indexed queries are plenty at this scale.
+//
+// The pattern is embedded in PostgREST's .or() filter grammar, where commas,
+// parens and dots are structural — so the value must be double-quoted and
+// quote/backslash-escaped, or a search for "Smith, John" breaks the filter
+// (and unquoted input could inject extra conditions).
+function orPattern(term: string): string {
+  const like = `%${term.replace(/[\\%_]/g, "\\$&")}%`;
+  return `"${like.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 export async function searchAll(db: Db, q: string, limit = 8): Promise<SearchResult[]> {
   const term = q.trim();
   if (term.length < 2) return [];
-  const pattern = `%${term.replace(/[%_]/g, "\\$&")}%`;
+  const pattern = orPattern(term);
 
   const [brokersRes, dealsRes] = await Promise.all([
     db

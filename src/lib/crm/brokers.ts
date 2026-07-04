@@ -54,9 +54,13 @@ export async function listBrokers(
   return attachStats(db, assertOk(data, error, "Listing brokers"));
 }
 
-export async function getBroker(db: Db, id: string): Promise<BrokerDetail> {
-  const { data, error } = await db.from("brokers").select("*").eq("id", id).single();
-  const broker = assertOk(data, error, "Loading broker");
+// Returns null when the broker doesn't exist; throws on real failures —
+// callers must not turn a database outage into a 404.
+export async function getBroker(db: Db, id: string): Promise<BrokerDetail | null> {
+  const { data, error } = await db.from("brokers").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(`Loading broker: ${error.message}`);
+  if (!data) return null;
+  const broker = data;
 
   const [withStats, interactionsRes, dealsRes] = await Promise.all([
     attachStats(db, [broker]),

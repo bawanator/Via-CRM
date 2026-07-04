@@ -81,12 +81,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   if (!isUuid(id)) notFound();
 
   const supabase = await createClient();
-  let deal: DealDetail;
-  try {
-    deal = await getDeal(supabase, id);
-  } catch {
-    notFound();
-  }
+  const deal: DealDetail | null = await getDeal(supabase, id);
+  if (!deal) notFound();
   const interactions = await listInteractionsForDeal(supabase, id);
 
   return (
@@ -111,11 +107,11 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
 
       {deal.status === "settled" ? <LoanSection deal={deal} /> : null}
 
-      {deal.status !== "settled" ? (
-        <GroupedSection header="Actions">
-          <DealStatusActions dealId={deal.id} status={deal.status} />
-        </GroupedSection>
-      ) : null}
+      {/* Settled deals keep the Actions group too: "Reopen as Live" is the
+          correction path for a mis-settled deal. */}
+      <GroupedSection header="Actions">
+        <DealStatusActions dealId={deal.id} status={deal.status} />
+      </GroupedSection>
 
       <GroupedSection header="Details">
         {deal.broker ? (

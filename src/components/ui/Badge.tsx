@@ -32,9 +32,12 @@ export const DEAL_STATUS_TONE: Record<DealStatus, BadgeTone> = {
   fell_over: "red",
 };
 
+// Stages are identity, not urgency or outcome — so no orange/green here:
+// those are reserved for "due soon" and "settled". Gray for pre-deal stages,
+// blue (the accent) once a broker is submitting. The label carries the rest.
 export const BROKER_STAGE_TONE: Record<BrokerStage, BadgeTone> = {
   introduced: "gray",
-  engaged: "orange",
+  engaged: "gray",
   active_submitter: "blue",
-  prime: "green",
+  prime: "blue",
 };

@@ -75,7 +75,10 @@ export function CommandSearch({ mobile = false }: { mobile?: boolean }) {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
         {mobile ? (
-          <button aria-label="Search" className="flex flex-col items-center gap-0.5">
+          <button
+            aria-label="Search"
+            className="flex min-h-12 w-full flex-1 flex-col items-center justify-center gap-0.5 self-stretch"
+          >
             <SearchIcon className="h-6 w-6" />
             <span className="text-caption-2 font-medium">Search</span>
           </button>

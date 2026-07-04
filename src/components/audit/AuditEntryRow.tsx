@@ -16,9 +16,11 @@ const ACTION_TONE: Record<AuditAction, BadgeTone> = {
   delete: "red",
 };
 
+// Sources are provenance, not status — all gray; the label differentiates.
+// (Orange is reserved for "due soon", and blue already means "update" here.)
 const SOURCE_TONE: Record<ChangeSource, BadgeTone> = {
-  ui: "blue",
-  mcp: "orange",
+  ui: "gray",
+  mcp: "gray",
   import: "gray",
   system: "gray",
 };

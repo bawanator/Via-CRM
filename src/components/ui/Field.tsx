@@ -24,7 +24,7 @@ export function TextField({
       <span className="text-body w-32 shrink-0 text-label">{label}</span>
       <input
         {...props}
-        className="text-body min-h-8 w-full min-w-0 flex-1 bg-transparent text-label placeholder:text-label-3 focus:outline-none"
+        className="text-body min-h-8 w-full min-w-0 flex-1 rounded-md bg-transparent text-label placeholder:text-label-3 focus:outline-none focus-visible:outline-2 focus-visible:outline-blue"
       />
     </label>
   );
@@ -44,7 +44,7 @@ export function SelectField({
       <span className="text-body w-32 shrink-0 text-label">{label}</span>
       <select
         {...props}
-        className="text-body min-h-8 w-full min-w-0 flex-1 appearance-none bg-transparent text-right text-label focus:outline-none"
+        className="text-body min-h-8 w-full min-w-0 flex-1 appearance-none rounded-md bg-transparent text-right text-label focus:outline-none focus-visible:outline-2 focus-visible:outline-blue"
       >
         {children}
       </select>
@@ -62,7 +62,7 @@ export function TextAreaField({
       <textarea
         {...props}
         rows={props.rows ?? 4}
-        className="text-body w-full resize-y bg-transparent text-label placeholder:text-label-3 focus:outline-none"
+        className="text-body w-full resize-y rounded-md bg-transparent text-label placeholder:text-label-3 focus:outline-none focus-visible:outline-2 focus-visible:outline-blue"
       />
     </label>
   );

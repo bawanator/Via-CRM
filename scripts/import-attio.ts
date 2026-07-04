@@ -97,6 +97,7 @@ async function fetchExistingBrokers(db: Db): Promise<ExistingBroker[]> {
     const { data, error } = await db
       .from("brokers")
       .select("id, full_name, email")
+      .order("id") // stable pages — unordered .range() can skip/duplicate rows
       .range(from, from + pageSize - 1);
     if (error) fail(`Fetching existing brokers: ${error.message}`);
     rows.push(...(data ?? []));

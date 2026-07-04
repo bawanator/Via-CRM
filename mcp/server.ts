@@ -150,6 +150,7 @@ function buildServer(db: Db, actorId: string | null): McpServer {
     guarded(async (args) => {
       const id = await resolveBrokerId(db, args.id_or_name);
       const [broker, driveLinks] = await Promise.all([getBroker(db, id), listDriveLinks(db, "broker", id)]);
+      if (!broker) throw new Error(`Broker not found: ${args.id_or_name}`);
       return toJson({ ...broker, drive_links: driveLinks });
     }),
   );
@@ -225,7 +226,9 @@ function buildServer(db: Db, actorId: string | null): McpServer {
     },
     guarded(async (args) => {
       const id = await resolveDealId(db, args.id_or_name);
-      return toJson(await getDeal(db, id));
+      const deal = await getDeal(db, id);
+      if (!deal) throw new Error(`Deal not found: ${args.id_or_name}`);
+      return toJson(deal);
     }),
   );
 
@@ -246,6 +249,7 @@ function buildServer(db: Db, actorId: string | null): McpServer {
       let promotionHint: string | null = null;
       try {
         const b = await getBroker(db, brokerId);
+        if (!b) throw new Error("broker vanished");
         const suggestion = suggestBrokerPromotion({
           currentStage: b.stage,
           totalDealsSubmitted: b.total_deals_submitted,

@@ -206,7 +206,33 @@ export async function syncBrokerGmail(
   }
   if (rows.length === 0) return 0;
 
-  const { error } = await db.from("interactions").upsert(rows, { onConflict: "broker_id,gmail_thread_id" });
+  // Skip unchanged threads: a blanket upsert would rewrite identical rows and
+  // flood the audit log with no-op 'update' entries on every nightly run.
+  const { data: existing, error: readError } = await db
+    .from("interactions")
+    .select("gmail_thread_id, occurred_at, summary")
+    .eq("broker_id", broker.id)
+    .in(
+      "gmail_thread_id",
+      rows.map((r) => r.gmail_thread_id!),
+    );
+  if (readError) throw new Error(`Checking existing Gmail threads: ${readError.message}`);
+  const unchanged = new Set(
+    (existing ?? [])
+      .filter((e) => {
+        const row = rows.find((r) => r.gmail_thread_id === e.gmail_thread_id);
+        return (
+          row &&
+          e.summary === row.summary &&
+          new Date(e.occurred_at).getTime() === new Date(row.occurred_at!).getTime()
+        );
+      })
+      .map((e) => e.gmail_thread_id),
+  );
+  const changed = rows.filter((r) => !unchanged.has(r.gmail_thread_id!));
+  if (changed.length === 0) return 0;
+
+  const { error } = await db.from("interactions").upsert(changed, { onConflict: "broker_id,gmail_thread_id" });
   if (error) throw new Error(`Saving Gmail threads: ${error.message}`);
-  return rows.length;
+  return changed.length;
 }
