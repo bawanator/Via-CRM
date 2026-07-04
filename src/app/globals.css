@@ -1,26 +1,215 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   iOS system palette, light + dark (Apple HIG values, not approximations).
+   Dark mode follows the OS via prefers-color-scheme — the Apple way.
+--------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --ios-blue: #007aff;
+  --ios-green: #34c759;
+  --ios-red: #ff3b30;
+  --ios-orange: #ff9500;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --ios-label: #000000;
+  --ios-label-secondary: rgba(60, 60, 67, 0.6);
+  --ios-label-tertiary: rgba(60, 60, 67, 0.3);
+
+  --ios-bg: #ffffff;
+  --ios-bg-grouped: #f2f2f7;
+  --ios-bg-card: #ffffff;
+  --ios-bg-elevated: #ffffff;
+
+  --ios-separator: rgba(60, 60, 67, 0.29);
+  --ios-fill: rgba(120, 120, 128, 0.2);
+  --ios-fill-secondary: rgba(120, 120, 128, 0.16);
+
+  --ios-bar: rgba(249, 249, 249, 0.85);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --ios-blue: #0a84ff;
+    --ios-green: #30d158;
+    --ios-red: #ff453a;
+    --ios-orange: #ff9f0a;
+
+    --ios-label: #ffffff;
+    --ios-label-secondary: rgba(235, 235, 245, 0.6);
+    --ios-label-tertiary: rgba(235, 235, 245, 0.3);
+
+    --ios-bg: #000000;
+    --ios-bg-grouped: #000000;
+    --ios-bg-card: #1c1c1e;
+    --ios-bg-elevated: #2c2c2e;
+
+    --ios-separator: rgba(84, 84, 88, 0.6);
+    --ios-fill: rgba(120, 120, 128, 0.36);
+    --ios-fill-secondary: rgba(120, 120, 128, 0.28);
+
+    --ios-bar: rgba(29, 29, 31, 0.85);
   }
 }
 
+@theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+
+  --color-blue: var(--ios-blue);
+  --color-green: var(--ios-green);
+  --color-red: var(--ios-red);
+  --color-orange: var(--ios-orange);
+
+  --color-label: var(--ios-label);
+  --color-label-2: var(--ios-label-secondary);
+  --color-label-3: var(--ios-label-tertiary);
+
+  --color-bg: var(--ios-bg);
+  --color-bg-grouped: var(--ios-bg-grouped);
+  --color-card: var(--ios-bg-card);
+  --color-elevated: var(--ios-bg-elevated);
+
+  --color-separator: var(--ios-separator);
+  --color-fill: var(--ios-fill);
+  --color-fill-2: var(--ios-fill-secondary);
+
+  --color-bar: var(--ios-bar);
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background: var(--ios-bg-grouped);
+  color: var(--ios-label);
+  /* Dynamic-Type friendly: rem-based sizes, user font scaling respected. */
+  font-size: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100dvh;
+  background: var(--ios-bg-grouped);
+}
+
+/* ---------------------------------------------------------------------------
+   Apple text-style hierarchy (rem-based; 17px body ≈ 1.0625rem).
+   Minimum rendered size is Caption 2 (11pt). Avoid light weights.
+--------------------------------------------------------------------------- */
+@utility text-large-title {
+  font-size: 2.125rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+@utility text-title-1 {
+  font-size: 1.75rem;
+  line-height: 1.21;
+  font-weight: 700;
+}
+@utility text-title-2 {
+  font-size: 1.375rem;
+  line-height: 1.27;
+  font-weight: 700;
+}
+@utility text-title-3 {
+  font-size: 1.25rem;
+  line-height: 1.25;
+  font-weight: 600;
+}
+@utility text-headline {
+  font-size: 1.0625rem;
+  line-height: 1.29;
+  font-weight: 600;
+}
+@utility text-body {
+  font-size: 1.0625rem;
+  line-height: 1.29;
+  font-weight: 400;
+}
+@utility text-callout {
+  font-size: 1rem;
+  line-height: 1.31;
+  font-weight: 400;
+}
+@utility text-subheadline {
+  font-size: 0.9375rem;
+  line-height: 1.33;
+  font-weight: 400;
+}
+@utility text-footnote {
+  font-size: 0.8125rem;
+  line-height: 1.38;
+  font-weight: 400;
+}
+@utility text-caption-1 {
+  font-size: 0.75rem;
+  line-height: 1.33;
+  font-weight: 400;
+}
+@utility text-caption-2 {
+  font-size: 0.6875rem;
+  line-height: 1.18;
+  font-weight: 400;
+}
+
+/* Hairline separators between grouped-list rows. */
+@utility hairline-rows {
+  & > * + * {
+    border-top: 0.5px solid var(--ios-separator);
+  }
+}
+
+/* Translucent bar (tab bar / headers) with backdrop blur — depth via
+   layering and translucency, not drop-shadow decoration. */
+@utility bar-blur {
+  background: var(--ios-bar);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* iOS-style tap feedback for list rows and buttons. */
+@utility pressable {
+  transition:
+    background-color 0.12s ease,
+    opacity 0.12s ease,
+    transform 0.12s ease;
+  &:active {
+    background-color: var(--ios-fill);
+  }
+}
+
+/* Sheet slide-up (mobile) / fade-scale (desktop) for Radix dialogs. */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Motion: subtle, physical, fast — and off when the user asks. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
