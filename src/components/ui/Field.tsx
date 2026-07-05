@@ -9,7 +9,7 @@ export function FieldGroup({ header, footer, children }: { header?: string; foot
   return (
     <div className="mb-5">
       {header ? <h3 className="text-footnote mb-1.5 px-4 uppercase tracking-wide text-label-2">{header}</h3> : null}
-      <div className="hairline-rows overflow-hidden rounded-xl bg-card">{children}</div>
+      <div className="card hairline-rows overflow-hidden rounded-xl bg-card">{children}</div>
       {footer ? <p className="text-footnote mt-1.5 px-4 text-label-2">{footer}</p> : null}
     </div>
   );

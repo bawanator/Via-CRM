@@ -95,7 +95,7 @@ async function fetchExistingBrokers(db: Db): Promise<ExistingBroker[]> {
   const pageSize = 1000;
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await db
-      .from("brokers")
+      .from("contacts")
       .select("id, full_name, email")
       .order("id") // stable pages — unordered .range() can skip/duplicate rows
       .range(from, from + pageSize - 1);
@@ -187,7 +187,7 @@ async function main() {
   const failures: string[] = [];
   for (let i = 0; i < plan.creates.length; i += BATCH_SIZE) {
     const batch = plan.creates.slice(i, i + BATCH_SIZE);
-    const { data, error } = await db.from("brokers").insert(batch).select("id");
+    const { data, error } = await db.from("contacts").insert(batch).select("id");
     if (error) {
       failures.push(`Batch ${i / BATCH_SIZE + 1} (rows ${i + 1}–${i + batch.length}): ${error.message}`);
       continue;

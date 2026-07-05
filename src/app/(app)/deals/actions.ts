@@ -4,22 +4,39 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import {
+  brokerInputSchema,
   brokerStageSchema,
   dealInputSchema,
   dealUpdateSchema,
   driveLinkInputSchema,
+  guarantorInputSchema,
+  guarantorUpdateSchema,
   keyDateInputSchema,
+  loseDealSchema,
   pipelineStageSchema,
   settleDealSchema,
+  taskInputSchema,
 } from "@/lib/schemas";
-import { createDeal, moveDealStage, settleDeal, updateDeal } from "@/lib/crm/deals";
-import { getBroker, updateBroker } from "@/lib/crm/brokers";
+import {
+  createDeal,
+  loseDeal,
+  moveDealStage,
+  reopenDeal,
+  settleDeal,
+  updateDeal,
+} from "@/lib/crm/deals";
+import { createBroker, getBroker, updateBroker } from "@/lib/crm/brokers";
+import { addGuarantor, deleteGuarantor, updateGuarantor } from "@/lib/crm/guarantors";
 import { addKeyDate, completeKeyDate, deleteKeyDate, updateKeyDate } from "@/lib/crm/keyDates";
 import { addDriveLink, deleteDriveLink } from "@/lib/crm/driveLinks";
+import { completeTask, createTask } from "@/lib/crm/tasks";
 import { suggestBrokerPromotion } from "@/lib/crm/stageSuggestions";
+import { DEFAULT_CONTACT_TYPE } from "@/lib/domain";
 import type { BrokerStage } from "@/lib/database.types";
 
 const uuid = z.string().uuid();
+
+type Result = { ok: true } | { ok: false; error: string };
 
 function errorMessage(err: unknown): string {
   if (err instanceof z.ZodError) return err.issues[0]?.message ?? "Invalid input";
@@ -27,12 +44,19 @@ function errorMessage(err: unknown): string {
   return "Something went wrong";
 }
 
+// A deal move ripples across the board, the record, the loan book (settled),
+// Today, and broker stats — revalidate them all so nothing shows stale.
 function revalidateDeal(dealId: string) {
   revalidatePath("/deals");
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/loan-book");
+  revalidatePath("/brokers");
   revalidatePath("/");
 }
+
+// ---------------------------------------------------------------------------
+// Create
+// ---------------------------------------------------------------------------
 
 export async function createDealAction(raw: unknown): Promise<
   | {
@@ -58,7 +82,6 @@ export async function createDealAction(raw: unknown): Promise<
     });
 
     revalidateDeal(deal.id);
-    revalidatePath("/brokers");
     revalidatePath(`/brokers/${broker.id}`);
 
     return {
@@ -73,76 +96,178 @@ export async function createDealAction(raw: unknown): Promise<
   }
 }
 
-export async function updateDealAction(
-  dealId: string,
+// Nested quick-create from the Add Deal sheet — a broker is a Broker-type
+// contact. Returns the new broker so the caller can select it inline.
+export async function createBrokerQuickAction(
   raw: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; broker: { id: string; full_name: string } } | { ok: false; error: string }> {
+  try {
+    const input = brokerInputSchema.parse(raw);
+    const supabase = await createClient();
+    const broker = await createBroker(supabase, { ...input, type: DEFAULT_CONTACT_TYPE });
+    revalidatePath("/brokers");
+    revalidatePath("/deals");
+    return { ok: true, broker: { id: broker.id, full_name: broker.full_name } };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Inline field edits (the record uses no Edit button)
+// ---------------------------------------------------------------------------
+
+// Only plain facts are editable inline; status / stage / loss reason have their
+// own dedicated actions and are deliberately excluded here.
+const INLINE_FIELDS = [
+  "name",
+  "borrower_entity",
+  "borrower_contact_name",
+  "borrower_contact_email",
+  "borrower_contact_phone",
+  "security_address",
+  "loan_amount",
+  "product",
+  "funder",
+  "notes",
+] as const;
+type InlineField = (typeof INLINE_FIELDS)[number];
+
+export async function updateDealFieldAction(dealId: string, field: string, value: string): Promise<Result> {
   try {
     const id = uuid.parse(dealId);
-    const input = dealUpdateSchema.parse(raw);
+    if (!INLINE_FIELDS.includes(field as InlineField)) {
+      return { ok: false, error: "That field can't be edited here" };
+    }
+    // Enum <select> rows submit "" to mean "clear"; the text/amount schemas
+    // already normalise "" to null themselves.
+    const raw = (field === "product" || field === "funder") && value === "" ? null : value;
+    const patch = dealUpdateSchema.parse({ [field]: raw });
     const supabase = await createClient();
-    await updateDeal(supabase, id, input);
+    await updateDeal(supabase, id, patch);
     revalidateDeal(id);
-    revalidatePath("/brokers");
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
 }
 
-export async function moveDealStageAction(
-  dealId: string,
-  stage: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+// ---------------------------------------------------------------------------
+// Status & stage transitions
+// ---------------------------------------------------------------------------
+
+export async function moveDealStageAction(dealId: string, stage: unknown): Promise<Result> {
   try {
     const id = uuid.parse(dealId);
     const parsedStage = pipelineStageSchema.parse(stage);
     const supabase = await createClient();
     await moveDealStage(supabase, id, parsedStage);
-    revalidatePath("/deals");
-    revalidatePath(`/deals/${id}`);
+    revalidateDeal(id);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
 }
 
-export async function settleDealAction(
-  dealId: string,
-  raw: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function settleDealAction(dealId: string, raw: unknown): Promise<Result> {
   try {
     const id = uuid.parse(dealId);
     const input = settleDealSchema.parse(raw);
     const supabase = await createClient();
     await settleDeal(supabase, id, input.settlement_date, input.loan_term_months);
     revalidateDeal(id);
-    revalidatePath("/brokers");
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
 }
 
-// Updates ONLY the stage — invoked from the explicit promotion prompt.
-export async function promoteBrokerAction(
-  brokerId: string,
-  to: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function loseDealAction(dealId: string, raw: unknown): Promise<Result> {
   try {
-    const id = uuid.parse(brokerId);
-    const stage = brokerStageSchema.parse(to);
+    const id = uuid.parse(dealId);
+    const { loss_reason } = loseDealSchema.parse(raw);
     const supabase = await createClient();
-    await updateBroker(supabase, id, { stage });
-    revalidatePath("/brokers");
-    revalidatePath(`/brokers/${id}`);
+    await loseDeal(supabase, id, loss_reason);
+    revalidateDeal(id);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
 }
 
-export async function addKeyDateAction(raw: unknown): Promise<{ ok: true } | { ok: false; error: string }> {
+// Reopen a settled/lost deal as live. An optional target stage is passed when
+// a lost card is dragged straight back into a pipeline column; otherwise the
+// existing pipeline_stage is kept.
+export async function reopenDealAction(dealId: string, stage?: unknown): Promise<Result> {
+  try {
+    const id = uuid.parse(dealId);
+    const supabase = await createClient();
+    if (stage !== undefined && stage !== null) {
+      const parsedStage = pipelineStageSchema.parse(stage);
+      // updateDeal clears loss_reason for any non-lost status.
+      await updateDeal(supabase, id, { status: "live", loss_reason: null, pipeline_stage: parsedStage });
+    } else {
+      await reopenDeal(supabase, id);
+    }
+    revalidateDeal(id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Guarantors (max 3, cap enforced in the crm layer)
+// ---------------------------------------------------------------------------
+
+export async function addGuarantorAction(raw: unknown): Promise<Result> {
+  try {
+    const input = guarantorInputSchema.parse(raw);
+    const supabase = await createClient();
+    await addGuarantor(supabase, input);
+    revalidateDeal(input.deal_id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+export async function updateGuarantorAction(
+  dealId: string,
+  guarantorId: string,
+  raw: unknown,
+): Promise<Result> {
+  try {
+    const parentId = uuid.parse(dealId);
+    const id = uuid.parse(guarantorId);
+    const input = guarantorUpdateSchema.parse(raw);
+    const supabase = await createClient();
+    await updateGuarantor(supabase, id, input);
+    revalidateDeal(parentId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+export async function deleteGuarantorAction(dealId: string, guarantorId: string): Promise<Result> {
+  try {
+    const parentId = uuid.parse(dealId);
+    const id = uuid.parse(guarantorId);
+    const supabase = await createClient();
+    await deleteGuarantor(supabase, id);
+    revalidateDeal(parentId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Key dates
+// ---------------------------------------------------------------------------
+
+export async function addKeyDateAction(raw: unknown): Promise<Result> {
   try {
     const input = keyDateInputSchema.parse(raw);
     const supabase = await createClient();
@@ -160,7 +285,7 @@ export async function updateKeyDateAction(
   dealId: string,
   keyDateId: string,
   raw: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<Result> {
   try {
     const parentId = uuid.parse(dealId);
     const id = uuid.parse(keyDateId);
@@ -178,7 +303,7 @@ export async function completeKeyDateAction(
   dealId: string,
   keyDateId: string,
   completed: unknown,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<Result> {
   try {
     const parentId = uuid.parse(dealId);
     const id = uuid.parse(keyDateId);
@@ -192,10 +317,7 @@ export async function completeKeyDateAction(
   }
 }
 
-export async function deleteKeyDateAction(
-  dealId: string,
-  keyDateId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function deleteKeyDateAction(dealId: string, keyDateId: string): Promise<Result> {
   try {
     const parentId = uuid.parse(dealId);
     const id = uuid.parse(keyDateId);
@@ -208,28 +330,83 @@ export async function deleteKeyDateAction(
   }
 }
 
-export async function addDriveLinkAction(raw: unknown): Promise<{ ok: true } | { ok: false; error: string }> {
+// ---------------------------------------------------------------------------
+// Drive links (parent_type 'deal')
+// ---------------------------------------------------------------------------
+
+export async function addDriveLinkAction(raw: unknown): Promise<Result> {
   try {
     const input = driveLinkInputSchema.parse(raw);
+    if (input.parent_type !== "deal") return { ok: false, error: "Links added here must belong to a deal" };
     const supabase = await createClient();
     await addDriveLink(supabase, input);
-    if (input.parent_type === "deal") revalidatePath(`/deals/${input.parent_id}`);
+    revalidatePath(`/deals/${input.parent_id}`);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
 }
 
-export async function deleteDriveLinkAction(
-  dealId: string,
-  linkId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function deleteDriveLinkAction(dealId: string, linkId: string): Promise<Result> {
   try {
     const parentId = uuid.parse(dealId);
     const id = uuid.parse(linkId);
     const supabase = await createClient();
     await deleteDriveLink(supabase, id);
     revalidatePath(`/deals/${parentId}`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tasks (scoped to this deal)
+// ---------------------------------------------------------------------------
+
+export async function addDealTaskAction(dealId: string, raw: unknown): Promise<Result> {
+  try {
+    const parentId = uuid.parse(dealId);
+    const input = taskInputSchema.parse({ ...(raw as Record<string, unknown>), deal_id: parentId });
+    const supabase = await createClient();
+    await createTask(supabase, input);
+    revalidateDeal(parentId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+export async function toggleDealTaskAction(
+  dealId: string,
+  taskId: string,
+  completed: unknown,
+): Promise<Result> {
+  try {
+    const parentId = uuid.parse(dealId);
+    const id = uuid.parse(taskId);
+    const done = z.boolean().parse(completed);
+    const supabase = await createClient();
+    await completeTask(supabase, id, done);
+    revalidateDeal(parentId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Broker promotion (explicit prompt only — never automatic)
+// ---------------------------------------------------------------------------
+
+export async function promoteBrokerAction(brokerId: string, to: unknown): Promise<Result> {
+  try {
+    const id = uuid.parse(brokerId);
+    const stage = brokerStageSchema.parse(to);
+    const supabase = await createClient();
+    await updateBroker(supabase, id, { stage });
+    revalidatePath("/brokers");
+    revalidatePath(`/brokers/${id}`);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };

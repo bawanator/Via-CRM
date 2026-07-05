@@ -1,7 +1,15 @@
 import type { AuditLogRow } from "@/lib/database.types";
 import { assertOk, type Db } from "@/lib/crm/db";
 
-export const AUDITED_TABLES = ["brokers", "deals", "key_dates", "drive_links", "interactions"] as const;
+export const AUDITED_TABLES = [
+  "contacts",
+  "deals",
+  "tasks",
+  "guarantors",
+  "key_dates",
+  "drive_links",
+  "interactions",
+] as const;
 
 export type AuditFilter = {
   tableName?: string;
@@ -38,6 +46,32 @@ export async function listAuditLog(db: Db, filter: AuditFilter = {}): Promise<Au
 // Field-level diff for the audit UI: which keys changed, from what, to what.
 // Row-meta noise (updated_at/updated_by) is excluded so diffs show substance.
 const NOISE_KEYS = new Set(["updated_at", "updated_by", "created_at", "created_by"]);
+
+// Human label for an audited record, derived from its row snapshot (prefer the
+// post-change state). Which column names a record depends on the table.
+export function auditRecordLabel(entry: Pick<AuditLogRow, "table_name" | "before" | "after">): string | null {
+  const row = (entry.after ?? entry.before ?? {}) as Record<string, unknown>;
+  const pick = (key: string): string | null => {
+    const v = row[key];
+    return typeof v === "string" && v.length > 0 ? v : null;
+  };
+  switch (entry.table_name) {
+    case "contacts":
+    case "guarantors":
+      return pick("full_name");
+    case "deals":
+      return pick("name");
+    case "tasks":
+      return pick("title");
+    case "key_dates":
+    case "drive_links":
+      return pick("label");
+    case "interactions":
+      return pick("summary");
+    default:
+      return null;
+  }
+}
 
 export type FieldChange = { field: string; before: unknown; after: unknown };
 

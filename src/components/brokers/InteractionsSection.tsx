@@ -11,7 +11,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { DateField, FieldGroup, SelectField, TextAreaField } from "@/components/ui/Field";
 import { ArrowUpRightIcon, ClockIcon, EnvelopeIcon, PeopleIcon, PhoneIcon } from "@/components/ui/icons";
 import { SectionHeader, SectionHeaderButton } from "@/components/brokers/SectionHeader";
-import { SheetSubmitButton } from "@/components/brokers/BrokerFormFields";
+import { SheetSubmitButton } from "@/components/brokers/ContactFormFields";
 
 const TYPE_ICON: Record<InteractionType, ComponentType<SVGProps<SVGSVGElement>>> = {
   email: EnvelopeIcon,

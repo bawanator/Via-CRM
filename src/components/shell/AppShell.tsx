@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { BookIcon, ClockIcon, DealsIcon, PeopleIcon, SunIcon } from "@/components/ui/icons";
+import { BookIcon, ChartIcon, ClockIcon, DealsIcon, PeopleIcon, SunIcon } from "@/components/ui/icons";
 import { CommandSearch } from "@/components/shell/CommandSearch";
 
 const TABS = [
@@ -13,9 +13,12 @@ const TABS = [
   { href: "/loan-book", label: "Loan Book", icon: BookIcon },
 ] as const;
 
-// Audit lives in the sidebar on desktop and behind Today→Audit link + search
-// on mobile — it is not a daily destination, so it doesn't earn a tab slot.
-const DESKTOP_EXTRAS = [{ href: "/audit", label: "Audit", icon: ClockIcon }] as const;
+// Reports and Audit live in the sidebar on desktop (and behind search on
+// mobile) — neither is a daily destination, so they don't earn a tab slot.
+const DESKTOP_EXTRAS = [
+  { href: "/reports", label: "Reports", icon: ChartIcon },
+  { href: "/audit", label: "Audit", icon: ClockIcon },
+] as const;
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);

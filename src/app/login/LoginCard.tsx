@@ -4,10 +4,15 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 
-// Google is the only way in. The extra gmail.readonly scope powers the
-// read-only email sync; offline access gives us a refresh token for the
-// nightly cron. Send/modify scopes are never requested.
-const GMAIL_SCOPES = "email profile https://www.googleapis.com/auth/gmail.readonly";
+// Google is the only way in. Sign-in needs email/profile only. The read-only
+// email-sync feature adds gmail.readonly — a Google "restricted" scope that
+// triggers the unverified-app screen — so it's opt-in via env, off until the
+// consent screen is verified. Flip NEXT_PUBLIC_ENABLE_GMAIL_SYNC=true to enable.
+// Send/modify scopes are never requested.
+const GMAIL_SYNC_ENABLED = process.env.NEXT_PUBLIC_ENABLE_GMAIL_SYNC === "true";
+const SCOPES = GMAIL_SYNC_ENABLED
+  ? "email profile https://www.googleapis.com/auth/gmail.readonly"
+  : "email profile";
 
 export function LoginCard() {
   const params = useSearchParams();
@@ -22,8 +27,9 @@ export function LoginCard() {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: GMAIL_SCOPES,
-        queryParams: { access_type: "offline", prompt: "consent" },
+        scopes: SCOPES,
+        // offline + consent only needed when we want a Gmail refresh token.
+        ...(GMAIL_SYNC_ENABLED ? { queryParams: { access_type: "offline", prompt: "consent" } } : {}),
       },
     });
     if (error) setBusy(false);

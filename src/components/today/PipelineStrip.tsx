@@ -2,14 +2,14 @@ import Link from "next/link";
 import type { DealPipelineStage } from "@/lib/database.types";
 import { PIPELINE_STAGES, PIPELINE_STAGE_LABELS } from "@/lib/domain";
 
-// Glance strip: six stage counts in one tappable card. Not a chart.
+// Glance strip: five live-pipeline stage counts in one tappable card. Not a chart.
 export function PipelineStrip({ counts }: { counts: Record<DealPipelineStage, number> }) {
   return (
     <section className="mb-6">
       <h2 className="text-footnote mb-1.5 px-4 uppercase tracking-wide text-label-2">Live Pipeline</h2>
       <Link
         href="/deals"
-        className="pressable grid min-h-11 grid-cols-6 items-start overflow-hidden rounded-xl bg-card px-2 py-3"
+        className="pressable grid min-h-11 grid-cols-5 items-start overflow-hidden rounded-xl bg-card px-2 py-3"
       >
         {PIPELINE_STAGES.map((stage) => {
           const count = counts[stage];

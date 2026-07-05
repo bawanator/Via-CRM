@@ -24,12 +24,12 @@ export function Badge({ tone = "gray", children }: { tone?: BadgeTone; children:
   );
 }
 
+// live = in flight (accent), settled = good terminal outcome (green),
+// lost = closed/didn't proceed — neutral history, not an alarm, so gray.
 export const DEAL_STATUS_TONE: Record<DealStatus, BadgeTone> = {
   live: "blue",
   settled: "green",
-  withdrawn: "gray",
-  declined: "gray",
-  fell_over: "red",
+  lost: "gray",
 };
 
 // Stages are identity, not urgency or outcome — so no orange/green here:

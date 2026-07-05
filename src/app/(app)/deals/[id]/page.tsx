@@ -2,24 +2,24 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getDeal, type DealDetail } from "@/lib/crm/deals";
 import { listInteractionsForDeal } from "@/lib/crm/interactions";
+import { listTasks } from "@/lib/crm/tasks";
 import { isUuid } from "@/lib/crm/db";
-import {
-  DEAL_STATUS_LABELS,
-  FUNDER_LABELS,
-  INTERACTION_TYPE_LABELS,
-  PRODUCT_LABELS,
-} from "@/lib/domain";
-import { formatAmount, formatDate, formatDateTime, maturityCountdown } from "@/lib/format";
+import { DEAL_STATUS_LABELS, INTERACTION_TYPE_LABELS, LOSS_REASON_LABELS } from "@/lib/domain";
+import { formatDate, formatDateTime, maturityCountdown } from "@/lib/format";
 import { Badge, DEAL_STATUS_TONE } from "@/components/ui/Badge";
 import { DetailRow, GroupedSection, LinkRow, Row } from "@/components/ui/GroupedList";
 import { ArrowUpRightIcon, BookIcon, EnvelopeIcon, PeopleIcon, PhoneIcon } from "@/components/ui/icons";
+import { DealDetailsSection } from "@/components/deals/DealDetailsSection";
 import { DealStatusActions } from "@/components/deals/DealStatusActions";
+import { DealTasksSection } from "@/components/deals/DealTasksSection";
+import { DealTitle } from "@/components/deals/DealTitle";
 import { DriveLinksSection } from "@/components/deals/DriveLinksSection";
-import { EditDealSheet } from "@/components/deals/EditDealSheet";
+import { GuarantorsSection } from "@/components/deals/GuarantorsSection";
 import { KeyDatesSection } from "@/components/deals/KeyDatesSection";
 import { NotesSection } from "@/components/deals/NotesSection";
 import { StagePicker } from "@/components/deals/StagePicker";
 import type { InteractionRow, InteractionType } from "@/lib/database.types";
+import type { TaskItem } from "@/components/tasks/types";
 
 export const dynamic = "force-dynamic";
 
@@ -83,19 +83,24 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const supabase = await createClient();
   const deal: DealDetail | null = await getDeal(supabase, id);
   if (!deal) notFound();
-  const interactions = await listInteractionsForDeal(supabase, id);
+
+  const [interactions, dealTasks] = await Promise.all([
+    listInteractionsForDeal(supabase, id),
+    listTasks(supabase, { dealId: id }),
+  ]);
+  const tasks: TaskItem[] = dealTasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    due_date: t.due_date,
+    completed: t.completed,
+  }));
 
   return (
     <>
       <header className="mb-5 pt-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-title-1 text-label">{deal.name}</h1>
-            <div className="mt-1.5">
-              <Badge tone={DEAL_STATUS_TONE[deal.status]}>{DEAL_STATUS_LABELS[deal.status]}</Badge>
-            </div>
-          </div>
-          <EditDealSheet deal={deal} />
+        <DealTitle dealId={deal.id} name={deal.name} />
+        <div className="mt-1.5">
+          <Badge tone={DEAL_STATUS_TONE[deal.status]}>{DEAL_STATUS_LABELS[deal.status]}</Badge>
         </div>
       </header>
 
@@ -107,47 +112,25 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
 
       {deal.status === "settled" ? <LoanSection deal={deal} /> : null}
 
-      {/* Settled deals keep the Actions group too: "Reopen as Live" is the
-          correction path for a mis-settled deal. */}
+      {deal.status === "lost" ? (
+        <GroupedSection header={DEAL_STATUS_LABELS.lost}>
+          <DetailRow label="Reason" value={deal.loss_reason ? LOSS_REASON_LABELS[deal.loss_reason] : "—"} />
+        </GroupedSection>
+      ) : null}
+
       <GroupedSection header="Actions">
         <DealStatusActions dealId={deal.id} status={deal.status} />
       </GroupedSection>
 
-      <GroupedSection header="Details">
-        {deal.broker ? (
-          <DetailRow label="Broker" value={deal.broker.full_name} href={`/brokers/${deal.broker.id}`} />
-        ) : null}
-        <DetailRow label="Borrower Entity" value={deal.borrower_entity ?? "—"} />
-        <DetailRow label="Borrower Contact" value={deal.borrower_contact_name ?? "—"} />
-        {deal.borrower_contact_email ? (
-          <DetailRow
-            label="Contact Email"
-            value={
-              <a href={`mailto:${deal.borrower_contact_email}`} className="text-blue">
-                {deal.borrower_contact_email}
-              </a>
-            }
-          />
-        ) : null}
-        {deal.borrower_contact_phone ? (
-          <DetailRow
-            label="Contact Phone"
-            value={
-              <a href={`tel:${deal.borrower_contact_phone}`} className="text-blue">
-                {deal.borrower_contact_phone}
-              </a>
-            }
-          />
-        ) : null}
-        <DetailRow label="Security Address" value={deal.security_address ?? "—"} />
-        <DetailRow label="Loan Amount" value={formatAmount(deal.loan_amount)} />
-        <DetailRow label="Product" value={deal.product ? PRODUCT_LABELS[deal.product] : "—"} />
-        <DetailRow label="Funder" value={deal.funder ? FUNDER_LABELS[deal.funder] : "—"} />
-      </GroupedSection>
+      <DealDetailsSection deal={deal} />
+
+      <GuarantorsSection dealId={deal.id} guarantors={deal.guarantors} />
 
       <KeyDatesSection dealId={deal.id} keyDates={deal.key_dates} />
 
       <DriveLinksSection dealId={deal.id} links={deal.drive_links} />
+
+      <DealTasksSection dealId={deal.id} tasks={tasks} />
 
       <GroupedSection header="Interactions" footer="Interactions are logged from the broker record.">
         {interactions.length === 0 ? (

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { data: brokers, error: brokersError } = await db
-    .from("brokers")
+    .from("contacts")
     .select("id, email")
     .not("email", "is", null)
     .order("full_name");

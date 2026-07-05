@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
 import type { BrokerStage } from "@/lib/database.types";
 import { BROKER_STAGES, BROKER_STAGE_HELP, BROKER_STAGE_LABELS } from "@/lib/domain";
-import { updateBrokerStageAction } from "@/app/(app)/brokers/actions";
+import { updateContactStageAction } from "@/app/(app)/brokers/actions";
 import { GroupedSection } from "@/components/ui/GroupedList";
 import { SelectField } from "@/components/ui/Field";
 
 // The one manual stage control — stages never change silently. The select
 // shows the chosen stage optimistically and reverts if the save fails.
-export function StageControl({ brokerId, stage }: { brokerId: string; stage: BrokerStage }) {
+// Broker-only: the record page renders it just for Broker-type contacts.
+export function StageControl({ contactId, stage }: { contactId: string; stage: BrokerStage }) {
   const router = useRouter();
   const [optimisticStage, setOptimisticStage] = useOptimistic(stage);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +22,7 @@ export function StageControl({ brokerId, stage }: { brokerId: string; stage: Bro
     setError(null);
     startTransition(async () => {
       setOptimisticStage(nextStage);
-      const res = await updateBrokerStageAction(brokerId, nextStage);
+      const res = await updateContactStageAction(contactId, nextStage);
       if (res.ok) {
         router.refresh();
       } else {

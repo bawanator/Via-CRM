@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: broker, error: brokerError } = await supabase
-      .from("brokers")
+      .from("contacts")
       .select("id, email")
       .eq("id", parsed.data.brokerId)
       .maybeSingle();

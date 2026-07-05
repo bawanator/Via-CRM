@@ -16,3 +16,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export function isUuid(s: string): boolean {
   return UUID_RE.test(s);
 }
+
+// Build a safe value for a PostgREST `.or()` ilike filter. In `.or()` the value
+// grammar treats commas, parens and dots as structural, so the pattern must be
+// double-quoted and quote/backslash-escaped — otherwise a search for
+// "Smith, John" breaks the filter (and unquoted input could inject conditions).
+// The inner %/_/\ are LIKE metacharacters, escaped so they match literally.
+export function orIlikePattern(term: string): string {
+  const like = `%${term.replace(/[\\%_]/g, "\\$&")}%`;
+  return `"${like.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}

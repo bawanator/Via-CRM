@@ -1,19 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
-import { listBrokers } from "@/lib/crm/brokers";
+import { listContacts } from "@/lib/crm/contacts";
+import { listContactTypes } from "@/lib/crm/contactTypes";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { AddBrokerButton } from "@/components/brokers/AddBrokerButton";
-import { BrokerBoard } from "@/components/brokers/BrokerBoard";
+import { AddContactButton } from "@/components/brokers/AddContactButton";
+import { ContactsBoard } from "@/components/brokers/ContactsBoard";
 
 export const dynamic = "force-dynamic";
 
 export default async function BrokersPage() {
   const supabase = await createClient();
-  const brokers = await listBrokers(supabase);
+  // Load every contact so the List view can show all types; the Kanban filters
+  // to Broker-type contacts client-side.
+  const [contacts, types] = await Promise.all([listContacts(supabase), listContactTypes(supabase)]);
 
   return (
     <>
-      <PageHeader title="Brokers" trailing={<AddBrokerButton />} />
-      <BrokerBoard brokers={brokers} />
+      <PageHeader title="Brokers" trailing={<AddContactButton types={types} />} />
+      <ContactsBoard contacts={contacts} types={types} />
     </>
   );
 }

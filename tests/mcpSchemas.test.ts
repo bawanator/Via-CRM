@@ -12,6 +12,27 @@ const UUID = "5f0c3a1e-2b4d-4c6e-9f8a-1234567890ab";
 type ShapeCase = { shape: z.ZodRawShape; valid: unknown; invalid: unknown };
 
 const cases: Record<string, ShapeCase> = {
+  // --- contacts ---
+  listContactsShape: {
+    shape: mcpSchemas.listContactsShape,
+    valid: { type: "Broker", location: "Melbourne", overdue_only: true },
+    invalid: { stage: "vip" }, // not a broker stage
+  },
+  getContactShape: {
+    shape: mcpSchemas.getContactShape,
+    valid: { id_or_name: "Jane" },
+    invalid: {}, // missing required id_or_name
+  },
+  createContactShape: {
+    shape: mcpSchemas.createContactShape,
+    valid: { full_name: "Sam Solicitor", type: "Solicitor", location: "Sydney", email: "sam@law.com.au" },
+    invalid: { full_name: "Sam", stage: "vip" },
+  },
+  updateContactShape: {
+    shape: mcpSchemas.updateContactShape,
+    valid: { id_or_name: "Sam", location: "Brisbane" },
+    invalid: { location: "Brisbane" }, // missing required id_or_name
+  },
   listBrokersShape: {
     shape: mcpSchemas.listBrokersShape,
     valid: { stage: "prime", overdue_only: true },
@@ -34,9 +55,10 @@ const cases: Record<string, ShapeCase> = {
   },
   logInteractionShape: {
     shape: mcpSchemas.logInteractionShape,
-    valid: { broker: "Jane", type: "call", summary: "Discussed the Smith St scenario", date: "2025-06-04" },
-    invalid: { broker: "Jane", type: "sms", summary: "x" }, // not an interaction type
+    valid: { contact: "Jane", type: "call", summary: "Discussed the Smith St scenario", date: "2025-06-04" },
+    invalid: { contact: "Jane", type: "sms", summary: "x" }, // not an interaction type
   },
+  // --- deals ---
   listDealsShape: {
     shape: mcpSchemas.listDealsShape,
     valid: { status: "live", pipeline_stage: "credit" },
@@ -49,24 +71,52 @@ const cases: Record<string, ShapeCase> = {
   },
   createDealShape: {
     shape: mcpSchemas.createDealShape,
-    valid: { broker: "Jane", name: "12 Smith St bridge", loan_amount: "1,500,000", product: "bridge" },
+    valid: { broker: "Jane", name: "12 Smith St bridge", loan_amount: "1,500,000", product: "bridging" },
     invalid: { name: "No broker given" }, // missing required broker
   },
   updateDealShape: {
     shape: mcpSchemas.updateDealShape,
-    valid: { id_or_name: "12 Smith St", funder: "hcp" },
-    invalid: { id_or_name: "12 Smith St", funder: "big_bank" }, // not a funder
+    valid: { id_or_name: "12 Smith St", funder: "funder_1" },
+    invalid: { id_or_name: "12 Smith St", funder: "big_bank" }, // not a funder code
   },
   moveDealStageShape: {
     shape: mcpSchemas.moveDealStageShape,
     valid: { id_or_name: "12 Smith St", stage: "term_sheet" },
-    invalid: { id_or_name: "12 Smith St", stage: "closing" }, // not a pipeline stage
+    invalid: { id_or_name: "12 Smith St", stage: "enquiry" }, // dropped stage
   },
   settleDealShape: {
     shape: mcpSchemas.settleDealShape,
     valid: { id_or_name: "12 Smith St", settlement_date: "2025-08-29", loan_term_months: 6 },
     invalid: { id_or_name: "12 Smith St", settlement_date: "2025-08-29", loan_term_months: 0 },
   },
+  loseDealShape: {
+    shape: mcpSchemas.loseDealShape,
+    valid: { id_or_name: "12 Smith St", loss_reason: "lost_to_competitor" },
+    invalid: { id_or_name: "12 Smith St", loss_reason: "changed_mind" }, // not a loss reason
+  },
+  // --- guarantors ---
+  addGuarantorShape: {
+    shape: mcpSchemas.addGuarantorShape,
+    valid: { deal: "12 Smith St", full_name: "Pat Guarantor", email: "pat@x.com" },
+    invalid: { deal: "12 Smith St" }, // missing required full_name
+  },
+  // --- tasks ---
+  listTasksShape: {
+    shape: mcpSchemas.listTasksShape,
+    valid: { open_only: true, contact: "Jane" },
+    invalid: { open_only: "yes" }, // not a boolean
+  },
+  createTaskShape: {
+    shape: mcpSchemas.createTaskShape,
+    valid: { title: "Chase valuation", due_date: "2025-06-10", deal: "12 Smith St" },
+    invalid: {}, // missing required title
+  },
+  completeTaskShape: {
+    shape: mcpSchemas.completeTaskShape,
+    valid: { task_id: UUID, completed: false },
+    invalid: { task_id: "not-a-uuid" },
+  },
+  // --- key dates & links ---
   addKeyDateShape: {
     shape: mcpSchemas.addKeyDateShape,
     valid: { deal: "12 Smith St", label: "First interest payment", due_date: "2025-09-30" },
@@ -79,9 +129,10 @@ const cases: Record<string, ShapeCase> = {
   },
   addDriveLinkShape: {
     shape: mcpSchemas.addDriveLinkShape,
-    valid: { parent_type: "deal", parent: "12 Smith St", label: "Valuation", url: "https://drive.google.com/x" },
-    invalid: { parent_type: "folder", parent: "12 Smith St", label: "Valuation", url: "https://drive.google.com/x" },
+    valid: { parent_type: "contact", parent: "Jane", label: "ID document", url: "https://drive.google.com/x" },
+    invalid: { parent_type: "folder", parent: "Jane", label: "ID", url: "https://drive.google.com/x" },
   },
+  // --- today & audit ---
   whatsDueShape: {
     shape: mcpSchemas.whatsDueShape,
     valid: { days_ahead: 14, cold_after_days: 30 },
@@ -89,8 +140,40 @@ const cases: Record<string, ShapeCase> = {
   },
   getAuditHistoryShape: {
     shape: mcpSchemas.getAuditHistoryShape,
-    valid: { table: "brokers", record_id: UUID, limit: 20 },
-    invalid: { table: "audit_log", record_id: UUID }, // audit_log itself is not an audited table
+    valid: { table: "contacts", record_id: UUID, limit: 20 },
+    invalid: { table: "audit_log", record_id: UUID }, // audit_log itself is not audited
+  },
+  // --- reports ---
+  reportSpecShape: {
+    shape: mcpSchemas.reportSpecShape,
+    valid: { metric: "stage_progression", target_stage: "term_sheet", from: "2025-01-01", to: "2025-03-31" },
+    invalid: { metric: "revenue" }, // not a supported metric
+  },
+  runReportShape: {
+    shape: mcpSchemas.runReportShape,
+    valid: { metric: "deals_submitted", group_by: "product" },
+    invalid: { metric: "revenue" },
+  },
+  saveReportShape: {
+    shape: mcpSchemas.saveReportShape,
+    valid: { name: "Deals submitted (90d)", spec: { metric: "deals_submitted" }, pinned: true },
+    invalid: { spec: { metric: "deals_submitted" } }, // missing required name
+  },
+  deleteReportShape: {
+    shape: mcpSchemas.deleteReportShape,
+    valid: { id: UUID },
+    invalid: { id: "not-a-uuid" },
+  },
+  setReportPinnedShape: {
+    shape: mcpSchemas.setReportPinnedShape,
+    valid: { id: UUID, pinned: true },
+    invalid: { id: UUID }, // missing required pinned
+  },
+  // --- contact types ---
+  addContactTypeShape: {
+    shape: mcpSchemas.addContactTypeShape,
+    valid: { name: "Referrer" },
+    invalid: {}, // missing required name
   },
 };
 

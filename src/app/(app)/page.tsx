@@ -3,10 +3,12 @@ import { whatsDue } from "@/lib/crm/today";
 import { APP_TIMEZONE } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { TodayTasks } from "@/components/today/TodayTasks";
 import { PipelineStrip } from "@/components/today/PipelineStrip";
 import { OverdueActions } from "@/components/today/OverdueActions";
 import { KeyDatesSection } from "@/components/today/KeyDatesSection";
 import { GoneCold } from "@/components/today/GoneCold";
+import type { TaskItem } from "@/components/tasks/types";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +23,26 @@ export default async function TodayPage() {
     timeZone: APP_TIMEZONE,
   }).format(new Date());
 
+  // Shape open tasks for the presentational TaskList, and build a parallel
+  // id → href map so a task linked to a contact/deal can deep-link.
+  const taskItems: TaskItem[] = data.openTasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    due_date: t.due_date,
+    completed: t.completed,
+    subtitle: t.deal?.name ?? t.contact?.full_name ?? null,
+  }));
+  const taskHrefs: Record<string, string> = {};
+  for (const t of data.openTasks) {
+    if (t.deal) taskHrefs[t.id] = `/deals/${t.deal.id}`;
+    else if (t.contact) taskHrefs[t.id] = `/brokers/${t.contact.id}`;
+  }
+
+  // "All clear" = nothing pressing today: no open tasks, no overdue next
+  // actions, no upcoming key dates. (Gone Cold is a standing informational
+  // list and renders separately below whenever there are cold contacts.)
   const allClear =
-    data.overdueActions.length === 0 && data.upcomingKeyDates.length === 0 && data.coldBrokers.length === 0;
+    data.openTasks.length === 0 && data.overdueActions.length === 0 && data.upcomingKeyDates.length === 0;
 
   return (
     <div>
@@ -30,17 +50,18 @@ export default async function TodayPage() {
         <p className="text-footnote text-label-2">{longDate}</p>
       </PageHeader>
 
+      <TodayTasks tasks={taskItems} hrefById={taskHrefs} />
+
       <PipelineStrip counts={data.liveDealsByStage} />
 
+      <OverdueActions brokers={data.overdueActions} today={data.today} />
+      <KeyDatesSection keyDates={data.upcomingKeyDates} today={data.today} />
+
       {allClear ? (
-        <EmptyState title="All clear" hint="No overdue actions or upcoming key dates." />
-      ) : (
-        <>
-          <OverdueActions brokers={data.overdueActions} today={data.today} />
-          <KeyDatesSection keyDates={data.upcomingKeyDates} today={data.today} />
-          <GoneCold brokers={data.coldBrokers} today={data.today} />
-        </>
-      )}
+        <EmptyState title="All clear" hint="No tasks, overdue actions, or upcoming key dates." />
+      ) : null}
+
+      <GoneCold brokers={data.coldBrokers} today={data.today} />
     </div>
   );
 }

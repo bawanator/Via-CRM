@@ -112,3 +112,12 @@ export function ArrowUpRightIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function ChartIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4.5 4v13.5A2 2 0 0 0 6.5 19.5H20" />
+      <path d="M9 16v-3.5M13 16V8.5M17 16v-6" />
+    </svg>
+  );
+}

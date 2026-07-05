@@ -38,7 +38,7 @@ describe.skipIf(!enabled)("database behaviour (local Supabase)", () => {
 
   async function createBroker(fullName: string) {
     const { data, error } = await db
-      .from("brokers")
+      .from("contacts")
       .insert({ full_name: fullName, source: "vitest" })
       .select()
       .single();
@@ -57,7 +57,7 @@ describe.skipIf(!enabled)("database behaviour (local Supabase)", () => {
   afterAll(async () => {
     if (interactionIds.length) await db.from("interactions").delete().in("id", interactionIds);
     if (dealIds.length) await db.from("deals").delete().in("id", dealIds);
-    if (brokerIds.length) await db.from("brokers").delete().in("id", brokerIds);
+    if (brokerIds.length) await db.from("contacts").delete().in("id", brokerIds);
     // Deleting the rows above wrote further audit entries; purge them last.
     if (allRecordIds.length) await db.from("audit_log").delete().in("record_id", allRecordIds);
   });
@@ -66,20 +66,20 @@ describe.skipIf(!enabled)("database behaviour (local Supabase)", () => {
     const broker = await createBroker(`Audit Trail Broker ${runSuffix}`);
 
     const { data: updatedData, error: updateError } = await db
-      .from("brokers")
+      .from("contacts")
       .update({ stage: "engaged" })
       .eq("id", broker.id)
       .select()
       .single();
     expect(must(updatedData, updateError).stage).toBe("engaged");
 
-    const { error: deleteError } = await db.from("brokers").delete().eq("id", broker.id);
+    const { error: deleteError } = await db.from("contacts").delete().eq("id", broker.id);
     expect(deleteError).toBeNull();
 
     const { data: audit, error } = await db
       .from("audit_log")
       .select("*")
-      .eq("table_name", "brokers")
+      .eq("table_name", "contacts")
       .eq("record_id", broker.id)
       .order("changed_at", { ascending: true });
     const rows = must(audit, error);
@@ -162,7 +162,7 @@ describe.skipIf(!enabled)("database behaviour (local Supabase)", () => {
     allRecordIds.push(firstInteraction.id);
 
     const { data: afterFirst, error: e2 } = await db
-      .from("brokers")
+      .from("contacts")
       .select("last_contact_date")
       .eq("id", broker.id)
       .single();
@@ -184,7 +184,7 @@ describe.skipIf(!enabled)("database behaviour (local Supabase)", () => {
     allRecordIds.push(secondInteraction.id);
 
     const { data: afterSecond, error: e4 } = await db
-      .from("brokers")
+      .from("contacts")
       .select("last_contact_date")
       .eq("id", broker.id)
       .single();

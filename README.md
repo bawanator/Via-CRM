@@ -2,17 +2,21 @@
 
 Internal broker & deal CRM for Vía Private. Single-user today, multi-user-ready by design.
 
-It manages exactly two things:
+It manages:
 
-1. **Brokers** — origination relationships in a four-stage pipeline (Introduced → Engaged → Active Submitter → Prime).
-2. **Deals** — live deals through a six-stage pipeline (Enquiry → Scenario → Term Sheet → Credit → Docs → Settlement), and settled loans tracked at a high level in the **Loan Book** (dates, reminders, contacts) for the life of the term.
+1. **Contacts** — every relationship, typed (Broker by default, plus Borrower / Solicitor / Valuer / Accountant / Referrer / … — types are data-driven and addable without code) and located (city, filterable). Brokers carry a four-stage origination pipeline (Introduced → Engaged → Active Submitter → Prime); other contact types don't.
+2. **Deals** — live deals through a five-stage pipeline (Scenario → Term Sheet → Credit → Docs → Settlement) on a drag-and-drop board, deals that don't proceed moved to **Closed / Lost** with a required reason, and settled loans tracked in the **Loan Book** for the life of the term. Deals carry guarantors (up to 3) and borrower details.
+3. **Tasks** — against contacts and deals, surfaced on the Today screen (and, later, synced to Google Tasks).
+4. **Reports** — count-based origination metrics (deals submitted, live pipeline, outcomes/loss reasons, stage progression, activity), pinnable and buildable without code, and queryable by Claude/any LLM via MCP.
 
-This is a tracking and visibility tool, **not** a loan servicing system. There is no calculation engine — it never computes balances, interest, or payments. It holds dates, statuses, people, links, and reminders. The only arithmetic anywhere is `maturity_date = settlement_date + term months` (date arithmetic, done by a database trigger).
+This is a tracking and visibility tool, **not** a loan servicing system. There is no calculation engine — it never computes balances, interest, or payments, and reports are counts/conversions only, never money sums. It holds dates, statuses, people, links, tasks, and reminders. The only arithmetic anywhere is `maturity_date = settlement_date + term months` (date arithmetic, done by a database trigger).
+
+**Funders are code-named `1` / `2` / `3` throughout — the real funder names appear nowhere in the app or its display, so the CRM can't leak the capital stack if it's shoulder-surfed.**
 
 ## Stack
 
-- **Frontend:** Next.js (App Router) on Vercel, TypeScript strict, Tailwind CSS v4. Installable PWA, Apple-HIG design language, dark mode, mobile-first (tested at 390px).
-- **Database:** Supabase Postgres. **This is its own new Supabase project inside the existing Vía Private Supabase organisation** — completely separate from the website and broker-portal projects. Nothing is shared with those systems except the org.
+- **Frontend:** Next.js (App Router) on Vercel, TypeScript strict, Tailwind CSS v4. Installable PWA, clean white Apple-HIG surface (light only), drag-and-drop deal board (@dnd-kit), click-to-edit fields, mobile-first (tested at 390px).
+- **Database:** Supabase Postgres. **This is its own Supabase project** (`likewwztdnzrwhkvtjpf`) **owned by the viaprivate.com.au Workspace org** — completely separate from the website and broker-portal projects. Nothing is shared with those systems.
 - **Auth:** Supabase Auth, Google sign-in only, gated by an allowlist table. Every table carries `created_by`/`updated_by`.
 - **Integrations:** Gmail (read-only), Google Drive (pasted links only), MCP server for Claude.
 

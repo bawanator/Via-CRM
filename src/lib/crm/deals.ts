@@ -1,11 +1,13 @@
 import type {
   DealFunder,
   DealInsert,
+  DealLossReason,
   DealPipelineStage,
   DealRow,
   DealStatus,
   DealUpdate,
   DriveLinkRow,
+  GuarantorRow,
   KeyDateRow,
 } from "@/lib/database.types";
 import { assertOk, isUuid, type Db } from "@/lib/crm/db";
@@ -17,9 +19,12 @@ export type DealWithBroker = DealRow & {
 export type DealDetail = DealWithBroker & {
   key_dates: KeyDateRow[];
   drive_links: DriveLinkRow[];
+  guarantors: GuarantorRow[];
 };
 
-const DEAL_WITH_BROKER = "*, broker:brokers(id, full_name, company)";
+// The broker on a deal is a Broker-type contact (FK column keeps the name
+// broker_id); embed by the real target table, `contacts`.
+const DEAL_WITH_BROKER = "*, broker:contacts(id, full_name, company)";
 
 export async function listDeals(
   db: Db,
@@ -52,9 +57,9 @@ export async function listLoanBook(db: Db): Promise<(DealWithBroker & { key_date
 export async function getDeal(db: Db, id: string): Promise<DealDetail | null> {
   const { data, error } = await db
     .from("deals")
-    .select(`${DEAL_WITH_BROKER}, key_dates(*)`)
+    .select(`${DEAL_WITH_BROKER}, key_dates(*), guarantors(*)`)
     .eq("id", id)
-    .maybeSingle<DealWithBroker & { key_dates: KeyDateRow[] }>();
+    .maybeSingle<DealWithBroker & { key_dates: KeyDateRow[]; guarantors: GuarantorRow[] }>();
   if (error) throw new Error(`Loading deal: ${error.message}`);
   if (!data) return null;
   const deal = data;
@@ -69,6 +74,7 @@ export async function getDeal(db: Db, id: string): Promise<DealDetail | null> {
   return {
     ...deal,
     key_dates: [...deal.key_dates].sort((a, b) => a.due_date.localeCompare(b.due_date)),
+    guarantors: [...deal.guarantors].sort((a, b) => a.created_at.localeCompare(b.created_at)),
     drive_links: assertOk(links.data, links.error, "Loading drive links"),
   };
 }
@@ -92,7 +98,13 @@ export async function createDeal(db: Db, input: DealInsert): Promise<DealRow> {
 }
 
 export async function updateDeal(db: Db, id: string, input: DealUpdate): Promise<DealRow> {
-  const { data, error } = await db.from("deals").update(input).eq("id", id).select().single();
+  // Honour the DB invariant (lost ⇔ loss_reason present): moving a deal to any
+  // non-lost status clears the loss reason unless the caller set one explicitly.
+  const patch: DealUpdate = { ...input };
+  if (patch.status && patch.status !== "lost" && patch.loss_reason === undefined) {
+    patch.loss_reason = null;
+  }
+  const { data, error } = await db.from("deals").update(patch).eq("id", id).select().single();
   return assertOk(data, error, "Updating deal");
 }
 
@@ -116,11 +128,21 @@ export async function settleDeal(
   });
 }
 
+// Closing / losing a deal: status → 'lost' with the required reason (the DB
+// check constraint enforces the pairing).
+export async function loseDeal(db: Db, id: string, lossReason: DealLossReason): Promise<DealRow> {
+  return updateDeal(db, id, { status: "lost", loss_reason: lossReason });
+}
+
+// Reopening a settled/lost deal back to live; updateDeal clears loss_reason.
+export async function reopenDeal(db: Db, id: string): Promise<DealRow> {
+  return updateDeal(db, id, { status: "live", loss_reason: null });
+}
+
 export async function countLiveDealsByStage(db: Db): Promise<Record<DealPipelineStage, number>> {
   const { data, error } = await db.from("deals").select("pipeline_stage").eq("status", "live");
   const rows = assertOk(data, error, "Counting live deals");
   const counts: Record<DealPipelineStage, number> = {
-    enquiry: 0,
     scenario: 0,
     term_sheet: 0,
     credit: 0,

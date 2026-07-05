@@ -2,105 +2,61 @@
 
 import { useState, useTransition } from "react";
 import type { FormEvent } from "react";
-import { settleDealAction, updateDealAction } from "@/app/(app)/deals/actions";
+import { loseDealAction, reopenDealAction, settleDealAction } from "@/app/(app)/deals/actions";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { DateField, FieldGroup, TextField } from "@/components/ui/Field";
 import { computeMaturityDate, todayISO } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
-import { DEAL_STATUS_LABELS } from "@/lib/domain";
-import type { DealStatus } from "@/lib/database.types";
-
-type Outcome = "withdrawn" | "declined" | "fell_over";
-
-const OUTCOMES: { status: Outcome; label: string; destructive: boolean }[] = [
-  { status: "withdrawn", label: "Mark Withdrawn", destructive: false },
-  { status: "declined", label: "Mark Declined", destructive: false },
-  { status: "fell_over", label: "Mark Fell Over", destructive: true },
-];
-
-function ActionRow({
-  label,
-  destructive = false,
-  confirming,
-  pending,
-  onTap,
-  onConfirm,
-  onCancel,
-}: {
-  label: string;
-  destructive?: boolean;
-  confirming: boolean;
-  pending: boolean;
-  onTap: () => void;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  if (confirming) {
-    return (
-      <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-1.5">
-        <span className="text-body text-label">{label}?</span>
-        <div className="flex items-center gap-1">
-          <Button variant="plain" onClick={onCancel} disabled={pending}>
-            Cancel
-          </Button>
-          <Button
-            variant={destructive ? "destructive" : "plain"}
-            onClick={onConfirm}
-            disabled={pending}
-            className="font-semibold"
-          >
-            Confirm
-          </Button>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <button
-      type="button"
-      onClick={onTap}
-      disabled={pending}
-      className={`text-body pressable flex min-h-11 w-full items-center px-4 py-2.5 text-left disabled:opacity-40 ${
-        destructive ? "text-red" : "text-blue"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
+import { DEAL_STATUS_LABELS, LOSS_REASON_LABELS, LOSS_REASONS } from "@/lib/domain";
+import type { DealLossReason, DealStatus } from "@/lib/database.types";
 
 // Explicit status controls for the deal record. Live deals can settle or be
-// marked withdrawn/declined/fell over; closed outcomes can reopen as live.
+// marked closed/lost (with a required reason); settled/lost deals can reopen.
 export function DealStatusActions({ dealId, status }: { dealId: string; status: DealStatus }) {
-  const [confirming, setConfirming] = useState<Outcome | "live" | null>(null);
   const [settleOpen, setSettleOpen] = useState(false);
+  const [loseOpen, setLoseOpen] = useState(false);
+  const [reopenConfirm, setReopenConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function changeStatus(next: DealStatus) {
+  function reopen() {
     setError(null);
     startTransition(async () => {
-      const res = await updateDealAction(dealId, { status: next });
+      const res = await reopenDealAction(dealId);
       if (!res.ok) {
         setError(res.error);
         return;
       }
-      setConfirming(null);
+      setReopenConfirm(false);
     });
   }
 
   if (status !== "live") {
     return (
       <>
-        <ActionRow
-          label="Reopen as Live"
-          confirming={confirming === "live"}
-          pending={pending}
-          onTap={() => setConfirming("live")}
-          onConfirm={() => changeStatus("live")}
-          onCancel={() => setConfirming(null)}
-        />
+        {reopenConfirm ? (
+          <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-1.5">
+            <span className="text-body text-label">Reopen as live?</span>
+            <div className="flex items-center gap-1">
+              <Button variant="plain" onClick={() => setReopenConfirm(false)} disabled={pending}>
+                Cancel
+              </Button>
+              <Button variant="plain" onClick={reopen} disabled={pending} className="font-semibold">
+                Reopen
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setReopenConfirm(true)}
+            disabled={pending}
+            className="text-body pressable flex min-h-11 w-full items-center px-4 py-2.5 text-left text-blue disabled:opacity-40"
+          >
+            Reopen as Live
+          </button>
+        )}
         {error ? <p className="text-footnote px-4 pb-2.5 text-red">{error}</p> : null}
       </>
     );
@@ -115,20 +71,16 @@ export function DealStatusActions({ dealId, status }: { dealId: string; status: 
       >
         Mark Settled…
       </button>
-      {OUTCOMES.map((o) => (
-        <ActionRow
-          key={o.status}
-          label={o.label}
-          destructive={o.destructive}
-          confirming={confirming === o.status}
-          pending={pending}
-          onTap={() => setConfirming(o.status)}
-          onConfirm={() => changeStatus(o.status)}
-          onCancel={() => setConfirming(null)}
-        />
-      ))}
+      <button
+        type="button"
+        onClick={() => setLoseOpen(true)}
+        className="text-body pressable flex min-h-11 w-full items-center px-4 py-2.5 text-left text-red"
+      >
+        Mark Closed / Lost…
+      </button>
       {error ? <p className="text-footnote px-4 pb-2.5 text-red">{error}</p> : null}
       <SettleSheet dealId={dealId} open={settleOpen} onOpenChange={setSettleOpen} />
+      <LoseSheet dealId={dealId} open={loseOpen} onOpenChange={setLoseOpen} />
     </>
   );
 }
@@ -152,7 +104,7 @@ function SettleSheet({
   const preview =
     /^\d{4}-\d{2}-\d{2}$/.test(date) && validTerm
       ? `Maturity: ${formatDate(computeMaturityDate(date, term))}`
-      : "Maturity is settlement date plus the loan term.";
+      : "Maturity is the settlement date plus the loan term.";
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -198,6 +150,58 @@ function SettleSheet({
         </FieldGroup>
         {error ? <p className="text-footnote px-4 text-red">{error}</p> : null}
       </form>
+    </Sheet>
+  );
+}
+
+function LoseSheet({
+  dealId,
+  open,
+  onOpenChange,
+}: {
+  dealId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function choose(reason: DealLossReason) {
+    setError(null);
+    startTransition(async () => {
+      const res = await loseDealAction(dealId, { loss_reason: reason });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      onOpenChange(false);
+    });
+  }
+
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) setError(null);
+      }}
+      title="Closed / Lost"
+    >
+      <p className="text-footnote mb-3 px-1 text-label-2">Why did this deal close? Pick a reason.</p>
+      <div className="card hairline-rows overflow-hidden rounded-xl bg-card">
+        {LOSS_REASONS.map((reason) => (
+          <button
+            key={reason}
+            type="button"
+            onClick={() => choose(reason)}
+            disabled={pending}
+            className="text-body pressable flex min-h-11 w-full items-center px-4 py-2.5 text-left text-label disabled:opacity-40"
+          >
+            {LOSS_REASON_LABELS[reason]}
+          </button>
+        ))}
+      </div>
+      {error ? <p className="text-footnote mt-3 px-4 text-red">{error}</p> : null}
     </Sheet>
   );
 }

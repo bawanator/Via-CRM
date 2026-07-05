@@ -8,11 +8,11 @@ import { Sheet } from "@/components/ui/Sheet";
 import { FieldGroup, TextField } from "@/components/ui/Field";
 import { ArrowUpRightIcon } from "@/components/ui/icons";
 import { SectionHeader, SectionHeaderButton } from "@/components/brokers/SectionHeader";
-import { SheetSubmitButton } from "@/components/brokers/BrokerFormFields";
+import { SheetSubmitButton } from "@/components/brokers/ContactFormFields";
 
 const FORM_ID = "add-drive-link-form";
 
-export function DriveLinksSection({ brokerId, links }: { brokerId: string; links: DriveLinkRow[] }) {
+export function DriveLinksSection({ contactId, links }: { contactId: string; links: DriveLinkRow[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function DriveLinksSection({ brokerId, links }: { brokerId: string; links
       const v = fd.get(key);
       return typeof v === "string" ? v : "";
     };
-    const input = { parent_type: "broker", parent_id: brokerId, label: get("label"), url: get("url") };
+    const input = { parent_type: "contact", parent_id: contactId, label: get("label"), url: get("url") };
     startTransition(async () => {
       const res = await addDriveLinkAction(input);
       if (res.ok) {
@@ -43,7 +43,7 @@ export function DriveLinksSection({ brokerId, links }: { brokerId: string; links
     setError(null);
     setRemovingId(id);
     startTransition(async () => {
-      const res = await deleteDriveLinkAction(id, brokerId);
+      const res = await deleteDriveLinkAction(id, contactId);
       if (!res.ok) setError(res.error);
       else router.refresh();
       setRemovingId(null);

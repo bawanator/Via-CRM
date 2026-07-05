@@ -3,12 +3,20 @@
 import { z } from "zod";
 
 export const brokerStageSchema = z.enum(["introduced", "engaged", "active_submitter", "prime"]);
-export const dealStatusSchema = z.enum(["live", "settled", "withdrawn", "declined", "fell_over"]);
-export const dealProductSchema = z.enum(["bridge", "draw", "hold", "frame", "other"]);
-export const dealFunderSchema = z.enum(["hcp", "first_federal", "other"]);
-export const pipelineStageSchema = z.enum(["enquiry", "scenario", "term_sheet", "credit", "docs", "settlement"]);
+export const dealStatusSchema = z.enum(["live", "settled", "lost"]);
+export const dealLossReasonSchema = z.enum([
+  "outside_mandate",
+  "unknown_broker",
+  "failed_broker_dd",
+  "failed_customer_dd",
+  "lost_to_competitor",
+  "ghosted",
+]);
+export const dealProductSchema = z.enum(["bridging", "equity_release", "purchase", "residual_stock", "other"]);
+export const dealFunderSchema = z.enum(["funder_1", "funder_2", "funder_3", "other"]);
+export const pipelineStageSchema = z.enum(["scenario", "term_sheet", "credit", "docs", "settlement"]);
 export const interactionTypeSchema = z.enum(["email", "call", "meeting", "note"]);
-export const linkParentTypeSchema = z.enum(["deal", "broker"]);
+export const linkParentTypeSchema = z.enum(["deal", "contact"]);
 
 const isoDate = z
   .string()
@@ -41,23 +49,39 @@ const optionalUrl = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? null : v),
   httpUrl.nullable().optional(),
 );
+const optionalAmount = z.preprocess(
+  (v) => (v === "" || v === undefined ? null : typeof v === "string" ? Number(v.replace(/[,$\s]/g, "")) : v),
+  z.number().finite().nonnegative().nullable().optional(),
+);
 
-export const brokerInputSchema = z.object({
+// ---------------------------------------------------------------------------
+// Contacts (brokers are contacts of type "Broker")
+// ---------------------------------------------------------------------------
+
+export const contactInputSchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(200),
   company: optionalText,
   email: optionalEmail,
   phone: optionalText,
   linkedin_url: optionalUrl,
+  type: z.string().trim().min(1).max(60).optional(), // references contact_types.name
+  location: optionalText,
   stage: brokerStageSchema.optional(),
-  // last_contact_date is deliberately absent: it is trigger-maintained from
-  // interactions and must never be hand-set (UI, MCP, or import).
   next_action: optionalText,
   next_action_date: optionalDate.optional(),
   notes: optionalText,
   source: optionalText,
 });
 
-export const brokerUpdateSchema = brokerInputSchema.partial();
+export const contactUpdateSchema = contactInputSchema.partial();
+
+// Back-compat aliases.
+export const brokerInputSchema = contactInputSchema;
+export const brokerUpdateSchema = contactUpdateSchema;
+
+// ---------------------------------------------------------------------------
+// Deals
+// ---------------------------------------------------------------------------
 
 export const dealInputSchema = z.object({
   name: z.string().trim().min(1, "Deal name is required").max(300),
@@ -67,14 +91,12 @@ export const dealInputSchema = z.object({
   borrower_contact_email: optionalEmail,
   borrower_contact_phone: optionalText,
   security_address: optionalText,
-  loan_amount: z.preprocess(
-    (v) => (v === "" || v === undefined ? null : typeof v === "string" ? Number(v.replace(/[,$\s]/g, "")) : v),
-    z.number().finite().nonnegative().nullable().optional(),
-  ),
+  loan_amount: optionalAmount,
   product: dealProductSchema.nullable().optional(),
   funder: dealFunderSchema.nullable().optional(),
   pipeline_stage: pipelineStageSchema.optional(),
   status: dealStatusSchema.optional(),
+  loss_reason: dealLossReasonSchema.nullable().optional(),
   settlement_date: optionalDate.optional(),
   loan_term_months: z.preprocess(
     (v) => (v === "" || v === undefined ? null : typeof v === "string" ? Number(v) : v),
@@ -90,6 +112,48 @@ export const settleDealSchema = z.object({
   settlement_date: isoDate,
   loan_term_months: z.number().int().positive().max(600),
 });
+
+// Moving a deal to Closed / Lost always carries a reason.
+export const loseDealSchema = z.object({
+  loss_reason: dealLossReasonSchema,
+});
+
+// ---------------------------------------------------------------------------
+// Guarantors
+// ---------------------------------------------------------------------------
+
+export const guarantorInputSchema = z.object({
+  deal_id: z.string().uuid(),
+  full_name: z.string().trim().min(1, "Name is required").max(200),
+  date_of_birth: optionalDate.optional(),
+  email: optionalEmail,
+  phone: optionalText,
+  address: optionalText,
+  notes: optionalText,
+});
+
+export const guarantorUpdateSchema = guarantorInputSchema.partial().omit({ deal_id: true });
+
+// ---------------------------------------------------------------------------
+// Tasks
+// ---------------------------------------------------------------------------
+
+export const taskInputSchema = z
+  .object({
+    title: z.string().trim().min(1, "Title is required").max(300),
+    notes: optionalText,
+    due_date: optionalDate.optional(),
+    contact_id: z.string().uuid().nullable().optional(),
+    deal_id: z.string().uuid().nullable().optional(),
+  });
+
+export const taskUpdateSchema = taskInputSchema.partial().extend({
+  completed: z.boolean().optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Key dates, drive links, interactions
+// ---------------------------------------------------------------------------
 
 export const keyDateInputSchema = z.object({
   deal_id: z.string().uuid(),
@@ -116,8 +180,30 @@ export const interactionInputSchema = z.object({
   summary: z.string().trim().min(1, "Summary is required").max(10_000),
 });
 
-export type BrokerInput = z.infer<typeof brokerInputSchema>;
+// ---------------------------------------------------------------------------
+// Contact types & saved reports (config)
+// ---------------------------------------------------------------------------
+
+export const contactTypeInputSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  sort: z.number().int().min(0).max(9999).optional(),
+});
+
+export const savedReportInputSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(120),
+  spec: z.record(z.string(), z.unknown()),
+  pinned: z.boolean().optional(),
+  sort: z.number().int().min(0).max(9999).optional(),
+});
+
+export const savedReportUpdateSchema = savedReportInputSchema.partial();
+
+export type ContactInput = z.infer<typeof contactInputSchema>;
+export type BrokerInput = ContactInput;
 export type DealInput = z.infer<typeof dealInputSchema>;
+export type GuarantorInput = z.infer<typeof guarantorInputSchema>;
+export type TaskInput = z.infer<typeof taskInputSchema>;
 export type KeyDateInput = z.infer<typeof keyDateInputSchema>;
 export type DriveLinkInput = z.infer<typeof driveLinkInputSchema>;
 export type InteractionInput = z.infer<typeof interactionInputSchema>;
+export type SavedReportInput = z.infer<typeof savedReportInputSchema>;

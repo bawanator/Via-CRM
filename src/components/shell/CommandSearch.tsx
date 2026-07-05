@@ -92,7 +92,7 @@ export function CommandSearch({ mobile = false }: { mobile?: boolean }) {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 [animation:fade-in_0.15s_ease]" />
-        <Dialog.Content className="fixed inset-x-3 top-[max(env(safe-area-inset-top),0.75rem)] z-50 overflow-hidden rounded-2xl bg-elevated [animation:pop-in_0.15s_ease] focus:outline-none sm:inset-x-auto sm:left-1/2 sm:top-24 sm:w-full sm:max-w-lg sm:-translate-x-1/2">
+        <Dialog.Content className="elevated-surface fixed inset-x-3 top-[max(env(safe-area-inset-top),0.75rem)] z-50 overflow-hidden rounded-2xl bg-elevated [animation:pop-in_0.15s_ease] focus:outline-none sm:inset-x-auto sm:left-1/2 sm:top-24 sm:w-full sm:max-w-lg sm:-translate-x-1/2">
           <Dialog.Title className="sr-only">Search brokers and deals</Dialog.Title>
           <div className="flex items-center gap-2.5 border-b-[0.5px] border-separator px-4">
             <SearchIcon className="h-5 w-5 shrink-0 text-label-2" />
