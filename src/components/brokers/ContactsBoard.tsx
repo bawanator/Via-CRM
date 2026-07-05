@@ -5,7 +5,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { ContactWithStats } from "@/lib/crm/contacts";
 import type { ContactTypeRow } from "@/lib/database.types";
 import { BROKER_STAGES, BROKER_STAGE_LABELS, DEFAULT_CONTACT_TYPE } from "@/lib/domain";
-import { relativeDays } from "@/lib/format";
 import { Badge, BROKER_STAGE_TONE } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -15,7 +14,7 @@ type Density = "comfortable" | "compact";
 
 function matchesSearch(c: ContactWithStats, q: string): boolean {
   if (!q) return true;
-  return [c.full_name, c.company, c.location].some((v) => (v ?? "").toLowerCase().includes(q));
+  return [c.full_name, c.company?.name, c.location].some((v) => (v ?? "").toLowerCase().includes(q));
 }
 
 export function ContactsBoard({ contacts, types }: { contacts: ContactWithStats[]; types: ContactTypeRow[] }) {
@@ -164,23 +163,17 @@ function Kanban({ contacts, q }: { contacts: ContactWithStats[]; q: string }) {
   );
 }
 
+// Compact card: one headline line (name + live-deal chip) and one caption line
+// (company · location). Everything else lives on the record page.
 function BrokerCard({ broker }: { broker: ContactWithStats }) {
+  const caption = [broker.company?.name, broker.location].filter(Boolean).join(" · ");
   return (
-    <Link href={`/brokers/${broker.id}`} className="pressable block min-h-11 rounded-xl bg-card px-4 py-3">
-      <p className="text-headline text-label">{broker.full_name}</p>
-      {broker.company ? <p className="text-footnote text-label-2">{broker.company}</p> : null}
-      <p className="text-footnote mt-1">
-        {broker.live_deal_count > 0 ? (
-          <span className="font-medium text-blue">{broker.live_deal_count} live</span>
-        ) : (
-          <span className="text-label-3">
-            {broker.last_contact_date ? relativeDays(broker.last_contact_date) : "no contact logged"}
-          </span>
-        )}
-        {broker.total_deals_submitted > 0 ? (
-          <span className="text-label-3"> · {broker.total_deals_submitted} total</span>
-        ) : null}
-      </p>
+    <Link href={`/brokers/${broker.id}`} className="pressable block min-h-11 rounded-xl bg-card px-3 py-2">
+      <span className="flex items-center justify-between gap-2">
+        <span className="text-headline min-w-0 truncate text-label">{broker.full_name}</span>
+        {broker.live_deal_count > 0 ? <Badge tone="blue">{broker.live_deal_count} live</Badge> : null}
+      </span>
+      {caption ? <span className="text-footnote block truncate text-label-2">{caption}</span> : null}
     </Link>
   );
 }
@@ -222,6 +215,8 @@ function List({
   );
 }
 
+// Sparse rows: name, a "company · type · location" caption, and one stage/type
+// chip. Compact density collapses the caption onto the same line.
 function ContactListRow({ contact, density }: { contact: ContactWithStats; density: Density }) {
   const isBroker = contact.type === DEFAULT_CONTACT_TYPE;
   const badge = isBroker ? (
@@ -229,25 +224,25 @@ function ContactListRow({ contact, density }: { contact: ContactWithStats; densi
   ) : (
     <Badge tone="gray">{contact.type}</Badge>
   );
+  const caption = [contact.company?.name, contact.type, contact.location].filter(Boolean).join(" · ");
 
   if (density === "compact") {
     return (
       <Link href={`/brokers/${contact.id}`} className="pressable flex min-h-9 items-center gap-3 px-4 py-1">
         <span className="text-body min-w-0 flex-1 truncate text-label">{contact.full_name}</span>
-        {contact.company ? (
-          <span className="text-footnote hidden min-w-0 max-w-[40%] truncate text-label-3 sm:block">{contact.company}</span>
+        {caption ? (
+          <span className="text-footnote hidden min-w-0 max-w-[45%] truncate text-label-3 sm:block">{caption}</span>
         ) : null}
         {badge}
       </Link>
     );
   }
 
-  const subtitle = [contact.company, contact.location].filter(Boolean).join(" · ");
   return (
     <Link href={`/brokers/${contact.id}`} className="pressable flex min-h-11 items-center gap-3 px-4 py-2.5">
       <div className="min-w-0 flex-1">
         <p className="text-body truncate text-label">{contact.full_name}</p>
-        {subtitle ? <p className="text-footnote truncate text-label-2">{subtitle}</p> : null}
+        {caption ? <p className="text-footnote truncate text-label-2">{caption}</p> : null}
       </div>
       {badge}
     </Link>

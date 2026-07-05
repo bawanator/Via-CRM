@@ -7,6 +7,7 @@
 import { z } from "zod";
 import {
   brokerStageSchema,
+  companyUpdateSchema,
   contactInputSchema,
   contactUpdateSchema,
   dealFunderSchema,
@@ -78,6 +79,23 @@ export const createBrokerShape = { ...contactInputSchema.shape };
 export const updateBrokerShape = {
   id_or_name: idOrName.describe("Broker UUID or (partial) name"),
   ...contactUpdateSchema.shape,
+};
+
+// -------------------------------------------------------------- companies --
+
+// Companies are auto-created (from typed names and email domains) and never
+// hand-maintained; these tools read them and patch details, never create.
+export const listCompaniesShape = {
+  search: z.string().trim().min(1).optional().describe("Fuzzy match over company name"),
+};
+
+export const getCompanyShape = {
+  id_or_name: idOrName.describe("Company UUID or (partial) name"),
+};
+
+export const updateCompanyShape = {
+  id_or_name: idOrName.describe("Company UUID or (partial) name"),
+  ...companyUpdateSchema.shape,
 };
 
 export const logInteractionShape = {

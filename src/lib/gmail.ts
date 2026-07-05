@@ -6,6 +6,9 @@
 
 import type { InteractionInsert } from "@/lib/database.types";
 import type { Db } from "@/lib/crm/db";
+import { contactInputSchema } from "@/lib/schemas";
+import { createContact } from "@/lib/crm/contacts";
+import { ensureCompanyByDomain } from "@/lib/crm/companies";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1";
@@ -235,4 +238,185 @@ export async function syncBrokerGmail(
   const { error } = await db.from("interactions").upsert(changed, { onConflict: "broker_id,gmail_thread_id" });
   if (error) throw new Error(`Saving Gmail threads: ${error.message}`);
   return changed.length;
+}
+
+// ---------------------------------------------------------------------------
+// Reply-triggered contact discovery
+// ---------------------------------------------------------------------------
+//
+// "A contact should be created ONLY when I reply back." Scanning the SENT
+// mailbox is exactly that filter: an address only appears in To/Cc of sent
+// mail when the user actually wrote to them — spam never qualifies.
+
+// Never auto-create contacts for robot mailboxes.
+const NOREPLY_RE = /(no[-._]?reply|do[-._]?not[-._]?reply|mailer-daemon|postmaster|notifications?@|bounce)/i;
+
+export type ParsedAddress = { email: string; displayName: string | null };
+
+/**
+ * Parse an RFC-5322-ish address list header ("To"/"Cc") into
+ * {email, displayName} pairs. Handles quoted display names containing commas
+ * (`"Yacoub, Jono" <jono@avant.org.au>`), plain `Name <a@b.com>` forms, and
+ * bare addresses. Emails are lowercased; junk tokens without "@" are dropped.
+ */
+export function parseAddressList(raw: string | null | undefined): ParsedAddress[] {
+  if (!raw) return [];
+
+  // Split on commas that are outside double quotes.
+  const parts: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (const ch of raw) {
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+      current += ch;
+    } else if (ch === "," && !inQuotes) {
+      parts.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  parts.push(current);
+
+  const out: ParsedAddress[] = [];
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const angle = trimmed.match(/<([^<>]*)>/);
+    const email = (angle ? angle[1] : trimmed).trim().toLowerCase();
+    if (!email.includes("@") || /\s/.test(email)) continue;
+
+    let displayName: string | null = null;
+    if (angle) {
+      const namePart = trimmed
+        .slice(0, trimmed.indexOf("<"))
+        .trim()
+        .replace(/^"([\s\S]*)"$/, "$1") // strip surrounding quotes
+        .replace(/\\"/g, '"')
+        .trim();
+      // A display name that is just the address again adds nothing.
+      if (namePart && !namePart.includes("@")) displayName = namePart;
+    }
+    out.push({ email, displayName });
+  }
+  return out;
+}
+
+/** Best-effort human name from an email local part: "jono.yacoub" → "Jono Yacoub". */
+export function nameFromEmail(email: string): string {
+  const local = email.split("@")[0];
+  const words = local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  return words.join(" ") || email;
+}
+
+export type DiscoveryResult = { created: number; skipped: number };
+
+/**
+ * Reply-triggered contact creation: scan recent SENT mail and create a
+ * skeleton contact for every To/Cc address the CRM doesn't know yet.
+ *
+ * - Skeletons are type "Other" (never Broker — the user re-types them), with
+ *   source "Auto-created from sent email" and best-effort names.
+ * - company_id is auto-linked from the email domain via ensureCompanyByDomain;
+ *   free-mail domains (gmail etc.) never create companies.
+ * - The user's own address(es) (From of sent mail) and noreply-style
+ *   mailboxes are never created.
+ * - Each new contact's recent threads are synced immediately (via
+ *   syncBrokerGmail) so their email tab is populated from the first render.
+ *
+ * Returns {created, skipped} — skipped counts addresses already in the CRM.
+ */
+export async function discoverContactsFromSent(
+  db: Db,
+  accessToken: string,
+  { newerThanDays = 30, max = 50 }: { newerThanDays?: number; max?: number } = {},
+): Promise<DiscoveryResult> {
+  const q = `in:sent newer_than:${newerThanDays}d`;
+  const list = await gmailGet<{ messages?: { id?: string }[] }>(
+    accessToken,
+    `/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${max}`,
+    "Gmail sent list",
+  );
+  const ids = (list.messages ?? []).flatMap((m) => (m.id ? [m.id] : []));
+  if (ids.length === 0) return { created: 0, skipped: 0 };
+
+  // Collect recipients across all sent messages (metadata only, small
+  // concurrent batches like the thread sync — gentle on Gmail quota).
+  const recipients = new Map<string, ParsedAddress>();
+  const ownAddresses = new Set<string>();
+  for (let i = 0; i < ids.length; i += META_BATCH) {
+    const metas = await Promise.all(
+      ids.slice(i, i + META_BATCH).map((id) =>
+        gmailGet<GmailMessage>(
+          accessToken,
+          `/users/me/messages/${id}?format=metadata&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=From`,
+          "Gmail sent message fetch",
+        ),
+      ),
+    );
+    for (const msg of metas) {
+      const headers = msg.payload?.headers;
+      for (const from of parseAddressList(findHeader(headers, "From"))) ownAddresses.add(from.email);
+      const found = [...parseAddressList(findHeader(headers, "To")), ...parseAddressList(findHeader(headers, "Cc"))];
+      for (const addr of found) {
+        if (NOREPLY_RE.test(addr.email)) continue;
+        const existing = recipients.get(addr.email);
+        // Keep the first entry that carries a display name.
+        if (!existing || (!existing.displayName && addr.displayName)) recipients.set(addr.email, addr);
+      }
+    }
+  }
+  for (const own of ownAddresses) recipients.delete(own);
+  if (recipients.size === 0) return { created: 0, skipped: 0 };
+
+  // Dedupe against existing contacts. The discovered set is small (bounded by
+  // `max` messages), so a single .in() is fine.
+  const { data: existingRows, error: existingError } = await db
+    .from("contacts")
+    .select("email")
+    .in("email", [...recipients.keys()]);
+  if (existingError) throw new Error(`Checking existing contacts: ${existingError.message}`);
+  const known = new Set((existingRows ?? []).flatMap((r) => (r.email ? [r.email.toLowerCase()] : [])));
+
+  let created = 0;
+  let skipped = 0;
+  const newContacts: { id: string; email: string }[] = [];
+  for (const [email, addr] of recipients) {
+    if (known.has(email)) {
+      skipped += 1;
+      continue;
+    }
+    // Zod-validated skeleton through the shared write boundary. Type "Other",
+    // NOT Broker — auto-created contacts must never pollute the pipeline.
+    const parsed = contactInputSchema.parse({
+      full_name: addr.displayName?.trim() || nameFromEmail(email),
+      email,
+      type: "Other",
+      source: "Auto-created from sent email",
+    });
+    const { company_name: _companyName, ...fields } = parsed;
+    const companyId = await ensureCompanyByDomain(db, email); // null for free-mail
+    const contact = await createContact(db, { ...fields, company_id: companyId });
+    newContacts.push({ id: contact.id, email });
+    created += 1;
+  }
+
+  // Populate each new contact's email tab immediately. Best-effort: a failed
+  // thread sync must not undo a successful discovery run.
+  for (const contact of newContacts) {
+    try {
+      await syncBrokerGmail(db, contact, accessToken, { newerThanDays, max: 15 });
+    } catch (err) {
+      console.error(
+        `Gmail discovery: thread sync for new contact ${contact.email} failed:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
+  return { created, skipped };
 }

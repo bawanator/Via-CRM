@@ -49,9 +49,18 @@ the server loads it by absolute path, so any working directory works.
 
 ## Tools
 
-Contacts: `list_contacts`, `get_contact`, `create_contact`, `update_contact`.
-Brokers (thin aliases defaulting the contact type to Broker): `list_brokers`,
-`get_broker`, `create_broker`, `update_broker`. `log_interaction`.
+Contacts: `list_contacts`, `get_contact` (includes the embedded company),
+`create_contact`, `update_contact`. Brokers (thin aliases defaulting the
+contact type to Broker): `list_brokers`, `get_broker`, `create_broker`,
+`update_broker`. `log_interaction`. On any of the create/update tools,
+`company_name` is a NAME — the server resolves it to a company record
+(find-or-create, case-insensitive) and links `company_id`; pass `null` to
+clear the link.
+
+Companies (auto-created from typed names and email domains — never created
+directly): `list_companies` (optional name search, with people counts),
+`get_company` (people + org-wide interactions + deals), `update_company`
+(name / domain / location / notes).
 
 Deals: `list_deals` (filter by status `live|settled|lost`, pipeline stage,
 funder, or broker), `get_deal` (includes guarantors, key dates, and Drive

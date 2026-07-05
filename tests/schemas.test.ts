@@ -47,9 +47,11 @@ describe("brokerInputSchema", () => {
   });
 
   it("accepts a minimal valid broker and normalises blank optionals to null", () => {
-    const parsed = brokerInputSchema.parse({ full_name: "Tom Nguyen", company: "  ", notes: "" });
+    // company_name is a NAME the server resolves to a company record — the
+    // schema just normalises it like any optional text field.
+    const parsed = brokerInputSchema.parse({ full_name: "Tom Nguyen", company_name: "  ", notes: "" });
     expect(parsed.full_name).toBe("Tom Nguyen");
-    expect(parsed.company).toBeNull();
+    expect(parsed.company_name).toBeNull();
     expect(parsed.notes).toBeNull();
   });
 

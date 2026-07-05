@@ -9,7 +9,8 @@ import { FieldGroup, SelectField, TextAreaField, TextField } from "@/components/
 
 export type ContactFormDefaults = {
   full_name?: string;
-  company?: string | null;
+  // A company NAME — resolved server-side to a company record (find-or-create).
+  company_name?: string | null;
   email?: string | null;
   phone?: string | null;
   linkedin_url?: string | null;
@@ -141,7 +142,7 @@ export function ContactFormFields({
 
       <FieldGroup>
         <TextField label="Name" name="full_name" required placeholder="Full name" defaultValue={defaults.full_name ?? ""} />
-        <TextField label="Company" name="company" placeholder="Company" defaultValue={defaults.company ?? ""} />
+        <TextField label="Company" name="company_name" placeholder="Company" defaultValue={defaults.company_name ?? ""} />
         <TextField
           label="Email"
           name="email"
@@ -195,7 +196,7 @@ export function contactFormValues(form: HTMLFormElement) {
   return {
     type: type || undefined,
     full_name: get("full_name"),
-    company: get("company"),
+    company_name: get("company_name"),
     email: get("email"),
     phone: get("phone"),
     linkedin_url: get("linkedin_url"),

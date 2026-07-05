@@ -29,6 +29,7 @@ import { BROKER_STAGE_LABELS, DEFAULT_CONTACT_TYPE } from "@/lib/domain";
 // automatically — the suggestion is surfaced in the create_deal response.
 import { suggestBrokerPromotion } from "@/lib/crm/stageSuggestions";
 import {
+  companyUpdateSchema,
   contactInputSchema,
   contactUpdateSchema,
   dealInputSchema,
@@ -49,6 +50,13 @@ import {
   resolveContactId,
   updateContact,
 } from "@/lib/crm/contacts";
+import {
+  ensureCompanyByName,
+  getCompany,
+  listCompanies,
+  resolveCompanyId,
+  updateCompany,
+} from "@/lib/crm/companies";
 import { createDeal, getDeal, listDeals, resolveDealId, updateDeal } from "@/lib/crm/deals";
 import { addGuarantor } from "@/lib/crm/guarantors";
 import { createTask, listTasks, updateTask } from "@/lib/crm/tasks";
@@ -74,9 +82,11 @@ import {
   deleteReportShape,
   getAuditHistoryShape,
   getBrokerShape,
+  getCompanyShape,
   getContactShape,
   getDealShape,
   listBrokersShape,
+  listCompaniesShape,
   listContactsShape,
   listContactTypesShape,
   listDealsShape,
@@ -91,6 +101,7 @@ import {
   settleDealShape,
   toJson,
   updateBrokerShape,
+  updateCompanyShape,
   updateContactShape,
   updateDealShape,
   whatsDueShape,
@@ -156,6 +167,18 @@ function buildServer(db: Db, actorId: string | null): McpServer {
   const created = { created_by: actorId, updated_by: actorId };
   const updated = { updated_by: actorId };
 
+  // company_name is a NAME Claude typed — resolve it to a company record id
+  // (find-or-create, case-insensitive) and strip it from the DB payload; the
+  // contacts table only carries company_id. null clears the link on updates.
+  async function resolveCompanyName<T extends { company_name?: string | null }>(
+    input: T,
+  ): Promise<Omit<T, "company_name"> & { company_id?: string | null }> {
+    const { company_name, ...rest } = input;
+    if (company_name === undefined) return rest;
+    const companyId = await ensureCompanyByName(db, company_name, { created_by: actorId });
+    return { ...rest, company_id: companyId };
+  }
+
   // --------------------------------------------------------------- contacts --
 
   server.registerTool(
@@ -199,7 +222,7 @@ function buildServer(db: Db, actorId: string | null): McpServer {
       inputSchema: createContactShape,
     },
     guarded(async (args) => {
-      const input = contactInputSchema.parse(args);
+      const input = await resolveCompanyName(contactInputSchema.parse(args));
       const contact = await createContact(db, { ...input, ...created });
       return toJson({ contact });
     }),
@@ -214,7 +237,7 @@ function buildServer(db: Db, actorId: string | null): McpServer {
     guarded(async (args) => {
       const { id_or_name, ...fields } = args;
       const id = await resolveContactId(db, id_or_name);
-      const input = requireFields(definedOnly(contactUpdateSchema.parse(fields)));
+      const input = await resolveCompanyName(requireFields(definedOnly(contactUpdateSchema.parse(fields))));
       const contact = await updateContact(db, id, { ...input, ...updated });
       return toJson({ contact });
     }),
@@ -263,7 +286,7 @@ function buildServer(db: Db, actorId: string | null): McpServer {
     },
     guarded(async (args) => {
       // Default the type to Broker; an explicit type still wins.
-      const input = contactInputSchema.parse({ ...args, type: args.type ?? DEFAULT_CONTACT_TYPE });
+      const input = await resolveCompanyName(contactInputSchema.parse({ ...args, type: args.type ?? DEFAULT_CONTACT_TYPE }));
       const broker = await createContact(db, { ...input, ...created });
       return toJson({ broker });
     }),
@@ -278,9 +301,55 @@ function buildServer(db: Db, actorId: string | null): McpServer {
     guarded(async (args) => {
       const { id_or_name, ...fields } = args;
       const id = await resolveContactId(db, id_or_name);
-      const input = requireFields(definedOnly(contactUpdateSchema.parse(fields)));
+      const input = await resolveCompanyName(requireFields(definedOnly(contactUpdateSchema.parse(fields))));
       const broker = await updateContact(db, id, { ...input, ...updated });
       return toJson({ broker });
+    }),
+  );
+
+  // -------------------------------------------------------------- companies --
+  // Companies are auto-created from typed names and email domains — these
+  // tools never create one directly; update_company patches details only.
+
+  server.registerTool(
+    "list_companies",
+    {
+      description: "List companies (auto-created org records) with people counts; optionally filter by a (partial) name.",
+      inputSchema: listCompaniesShape,
+    },
+    guarded(async (args) => {
+      const companies = await listCompanies(db, { search: args.search });
+      return toJson({ count: companies.length, companies });
+    }),
+  );
+
+  server.registerTool(
+    "get_company",
+    {
+      description:
+        "Fetch a company by UUID or name: the org record, its people, org-wide interactions (everything logged against anyone at the company), and deals.",
+      inputSchema: getCompanyShape,
+    },
+    guarded(async (args) => {
+      const id = await resolveCompanyId(db, args.id_or_name);
+      const company = await getCompany(db, id);
+      if (!company) throw new Error(`Company not found: ${args.id_or_name}`);
+      return toJson(company);
+    }),
+  );
+
+  server.registerTool(
+    "update_company",
+    {
+      description: "Update fields on a company — only the fields you pass (name, domain, location, notes).",
+      inputSchema: updateCompanyShape,
+    },
+    guarded(async (args) => {
+      const { id_or_name, ...fields } = args;
+      const id = await resolveCompanyId(db, id_or_name);
+      const input = requireFields(definedOnly(companyUpdateSchema.parse(fields)));
+      const company = await updateCompany(db, id, { ...input, ...updated });
+      return toJson({ company });
     }),
   );
 

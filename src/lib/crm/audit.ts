@@ -3,6 +3,7 @@ import { assertOk, type Db } from "@/lib/crm/db";
 
 export const AUDITED_TABLES = [
   "contacts",
+  "companies",
   "deals",
   "tasks",
   "guarantors",
@@ -59,6 +60,7 @@ export function auditRecordLabel(entry: Pick<AuditLogRow, "table_name" | "before
     case "contacts":
     case "guarantors":
       return pick("full_name");
+    case "companies":
     case "deals":
       return pick("name");
     case "tasks":

@@ -93,7 +93,7 @@ export function CommandSearch({ mobile = false }: { mobile?: boolean }) {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 [animation:fade-in_0.15s_ease]" />
         <Dialog.Content className="elevated-surface fixed inset-x-3 top-[max(env(safe-area-inset-top),0.75rem)] z-50 overflow-hidden rounded-2xl bg-elevated [animation:pop-in_0.15s_ease] focus:outline-none sm:inset-x-auto sm:left-1/2 sm:top-24 sm:w-full sm:max-w-lg sm:-translate-x-1/2">
-          <Dialog.Title className="sr-only">Search brokers and deals</Dialog.Title>
+          <Dialog.Title className="sr-only">Search contacts, companies and deals</Dialog.Title>
           <div className="flex items-center gap-2.5 border-b-[0.5px] border-separator px-4">
             <SearchIcon className="h-5 w-5 shrink-0 text-label-2" />
             <input
@@ -101,8 +101,8 @@ export function CommandSearch({ mobile = false }: { mobile?: boolean }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onInputKey}
-              placeholder="Brokers, deals, addresses…"
-              aria-label="Search brokers and deals"
+              placeholder="Contacts, companies, deals…"
+              aria-label="Search contacts, companies and deals"
               className="text-body min-h-13 w-full bg-transparent text-label placeholder:text-label-3 focus:outline-none"
             />
           </div>
@@ -116,7 +116,7 @@ export function CommandSearch({ mobile = false }: { mobile?: boolean }) {
                     className={`flex w-full items-center gap-3 px-4 py-2.5 text-left ${i === highlighted ? "bg-fill" : ""}`}
                   >
                     <span className="text-caption-1 w-14 shrink-0 uppercase text-label-3">
-                      {r.kind === "broker" ? "Broker" : "Deal"}
+                      {r.kind === "contact" ? "Contact" : r.kind === "company" ? "Company" : "Deal"}
                     </span>
                     <span className="min-w-0">
                       <span className="text-body block truncate text-label">{r.title}</span>

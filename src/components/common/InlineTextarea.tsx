@@ -37,7 +37,7 @@ export function InlineTextarea({
             cancelRef.current = false;
             start();
           }}
-          className="text-body pressable block min-h-11 w-full rounded-md px-2 -mx-2 py-1.5 text-left transition-colors hover:bg-fill-2 focus-visible:outline-2 focus-visible:outline-blue"
+          className="text-body pressable control-h block w-full rounded-md px-2 -mx-2 py-1.5 text-left transition-colors hover:bg-fill-2 focus-visible:outline-2 focus-visible:outline-blue"
         >
           {value ? (
             <span className="block whitespace-pre-wrap break-words text-label">{value}</span>

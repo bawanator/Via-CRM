@@ -45,13 +45,30 @@ const cases: Record<string, ShapeCase> = {
   },
   createBrokerShape: {
     shape: mcpSchemas.createBrokerShape,
-    valid: { full_name: "Jane O'Brien", email: "jane@brokerco.com.au", stage: "engaged" },
+    // company_name is a NAME the server resolves via ensureCompanyByName.
+    valid: { full_name: "Jane O'Brien", email: "jane@brokerco.com.au", stage: "engaged", company_name: "BrokerCo" },
     invalid: { full_name: "Jane", stage: "vip" },
   },
   updateBrokerShape: {
     shape: mcpSchemas.updateBrokerShape,
     valid: { id_or_name: "Jane", next_action: "Send term sheet" },
     invalid: { next_action: "Send term sheet" }, // missing required id_or_name
+  },
+  // --- companies ---
+  listCompaniesShape: {
+    shape: mcpSchemas.listCompaniesShape,
+    valid: { search: "Aria" },
+    invalid: { search: "" }, // min(1) after trim
+  },
+  getCompanyShape: {
+    shape: mcpSchemas.getCompanyShape,
+    valid: { id_or_name: "Aria Capital" },
+    invalid: {}, // missing required id_or_name
+  },
+  updateCompanyShape: {
+    shape: mcpSchemas.updateCompanyShape,
+    valid: { id_or_name: "Aria Capital", domain: "ariacapital.com.au", location: "Melbourne" },
+    invalid: { id_or_name: "Aria Capital", domain: "not a domain!!" }, // fails the domain regex
   },
   logInteractionShape: {
     shape: mcpSchemas.logInteractionShape,

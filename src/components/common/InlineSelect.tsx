@@ -33,7 +33,7 @@ export function InlineSelect({
           type="button"
           aria-label={ariaLabel}
           onClick={start}
-          className="text-body pressable flex min-h-11 w-full items-center rounded-md px-2 -mx-2 text-left transition-colors hover:bg-fill-2 focus-visible:outline-2 focus-visible:outline-blue"
+          className="text-body pressable control-h flex w-full items-center rounded-md px-2 -mx-2 text-left transition-colors hover:bg-fill-2 focus-visible:outline-2 focus-visible:outline-blue"
         >
           {selected ? (
             <span className="truncate text-label">{selected.label}</span>
@@ -60,7 +60,7 @@ export function InlineSelect({
           }
         }}
         onBlur={stop}
-        className="text-body min-h-11 w-full rounded-md bg-fill-2 px-2 -mx-2 text-label focus:outline-none focus-visible:outline-2 focus-visible:outline-blue disabled:opacity-60"
+        className="text-body control-h w-full rounded-md bg-fill-2 px-2 -mx-2 text-label focus:outline-none focus-visible:outline-2 focus-visible:outline-blue disabled:opacity-60"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>

@@ -14,8 +14,9 @@
 import { readFileSync } from "node:fs";
 import { config } from "dotenv";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { BrokerStage } from "@/lib/database.types";
+import type { BrokerStage, ContactInsert } from "@/lib/database.types";
 import type { Db } from "@/lib/crm/db";
+import { ensureCompanyByName } from "@/lib/crm/companies";
 import {
   backfillCompanies,
   parseCompaniesCsv,
@@ -164,7 +165,14 @@ async function main() {
   console.log(`\nParsed ${people.length} people; ${existingRows.length} broker(s) already in the database.`);
   if (plan.creates.length > 0) {
     console.log(`\nTo create (${plan.creates.length}):`);
-    console.table(plan.creates.map((c) => ({ name: c.full_name, email: c.email ?? "—", stage: c.stage })));
+    console.table(
+      plan.creates.map((c) => ({
+        name: c.full_name,
+        email: c.email ?? "—",
+        company: c.company_name ?? "—",
+        stage: c.stage,
+      })),
+    );
   } else {
     console.log("\nNothing to create.");
   }
@@ -181,12 +189,31 @@ async function main() {
     return;
   }
 
+  // --- Resolve each distinct company name to a record id, once ---
+  // Companies are linked records (contacts.company_id); ensureCompanyByName
+  // find-or-creates case-insensitively, cached so the DB sees each name once.
+  const companyIds = new Map<string, string | null>(); // lowercased name → id
+  const rows: ContactInsert[] = [];
+  for (const { company_name, ...rest } of plan.creates) {
+    const key = company_name?.trim().toLowerCase() ?? "";
+    if (key && !companyIds.has(key)) {
+      try {
+        companyIds.set(key, await ensureCompanyByName(db, company_name));
+      } catch (err) {
+        console.error(`Resolving company "${company_name}": ${errorMessage(err)} — importing without a company link.`);
+        companyIds.set(key, null);
+      }
+    }
+    rows.push({ ...rest, company_id: key ? (companyIds.get(key) ?? null) : null });
+  }
+  if (companyIds.size > 0) console.log(`Resolved ${companyIds.size} distinct company name(s) to records.`);
+
   // --- Insert in batches; a failed batch is reported and the run continues ---
   const BATCH_SIZE = 50;
   let created = 0;
   const failures: string[] = [];
-  for (let i = 0; i < plan.creates.length; i += BATCH_SIZE) {
-    const batch = plan.creates.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE);
     const { data, error } = await db.from("contacts").insert(batch).select("id");
     if (error) {
       failures.push(`Batch ${i / BATCH_SIZE + 1} (rows ${i + 1}–${i + batch.length}): ${error.message}`);

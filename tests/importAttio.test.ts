@@ -127,7 +127,9 @@ describe("planImport", () => {
 
     const jane = plan.creates[0];
     expect(jane.email).toBe("jane@brokerco.com.au");
-    expect(jane.company).toBe("BrokerCo, Pty Ltd");
+    // The pure layer carries the company NAME through; the CLI resolves it to
+    // a company_id (ensureCompanyByName) before inserting — no db in here.
+    expect(jane.company_name).toBe("BrokerCo, Pty Ltd");
     expect(jane.linkedin_url).toBe("https://linkedin.com/in/janeob");
     expect(jane.notes).toBe("Met at conference, keen on bridging");
     expect(jane.source).toBe("Attio import");

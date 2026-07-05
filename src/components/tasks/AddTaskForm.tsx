@@ -56,8 +56,8 @@ export function AddTaskForm({
       onSubmit={submit}
       className={`card overflow-hidden rounded-xl bg-card ${className}`}
     >
-      <div className="flex items-center gap-2 px-4 py-1.5">
-        <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-label-3" aria-hidden>
+      <div className="flex items-center gap-2 px-3 py-1">
+        <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-label-3" aria-hidden>
           <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2.5 2.5" />
         </svg>
         <input
@@ -73,20 +73,20 @@ export function AddTaskForm({
           }}
           placeholder={placeholder}
           aria-label="Task title"
-          className="text-body min-h-11 w-full min-w-0 flex-1 bg-transparent text-label placeholder:text-label-3 focus:outline-none"
+          className="text-body control-h w-full min-w-0 flex-1 bg-transparent text-label placeholder:text-label-3 focus:outline-none"
         />
         <input
           type="date"
           value={due}
           onChange={(e) => setDue(e.target.value)}
           aria-label="Due date"
-          className="text-footnote min-h-11 shrink-0 bg-transparent text-label-2 focus:outline-none focus-visible:outline-2 focus-visible:outline-blue"
+          className="text-footnote control-h shrink-0 bg-transparent text-label-2 focus:outline-none focus-visible:outline-2 focus-visible:outline-blue"
         />
         <Button variant="tinted" type="submit" disabled={pending} className="shrink-0">
           {pending ? "Adding…" : "Add"}
         </Button>
       </div>
-      {error ? <p className="text-footnote px-4 pb-2 text-red">{error}</p> : null}
+      {error ? <p className="text-footnote px-3 pb-2 text-red">{error}</p> : null}
     </form>
   );
 }

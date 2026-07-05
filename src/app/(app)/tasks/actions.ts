@@ -9,7 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { taskInputSchema } from "@/lib/schemas";
+import { taskInputSchema, taskUpdateSchema } from "@/lib/schemas";
 import { createTask, completeTask as completeTaskCrm, updateTask } from "@/lib/crm/tasks";
 
 type ActionOk = { ok: true; id: string };
@@ -55,6 +55,22 @@ export async function toggleTaskAction(id: string, completed: boolean): Promise<
     const done = z.boolean().parse(completed);
     const supabase = await createClient();
     const task = await updateTask(supabase, taskId, { completed: done });
+    revalidateTaskPaths(task);
+    return { ok: true, id: task.id };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// Edit a task in place (Today's inline rename / reschedule). Accepts any
+// partial task shape — title, due_date, notes, completed — parsed through
+// taskUpdateSchema before the crm write.
+export async function updateTaskAction(id: string, raw: unknown): Promise<ActionResult> {
+  try {
+    const taskId = uuid.parse(id);
+    const input = taskUpdateSchema.parse(raw);
+    const supabase = await createClient();
+    const task = await updateTask(supabase, taskId, input);
     revalidateTaskPaths(task);
     return { ok: true, id: task.id };
   } catch (err) {

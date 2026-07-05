@@ -8,9 +8,9 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTML
 export function FieldGroup({ header, footer, children }: { header?: string; footer?: ReactNode; children: ReactNode }) {
   return (
     <div className="mb-5">
-      {header ? <h3 className="text-footnote mb-1.5 px-4 uppercase tracking-wide text-label-2">{header}</h3> : null}
+      {header ? <h3 className="text-caption-1 mb-1.5 px-3 uppercase tracking-wide text-label-2">{header}</h3> : null}
       <div className="card hairline-rows overflow-hidden rounded-xl bg-card">{children}</div>
-      {footer ? <p className="text-footnote mt-1.5 px-4 text-label-2">{footer}</p> : null}
+      {footer ? <p className="text-footnote mt-1.5 px-3 text-label-2">{footer}</p> : null}
     </div>
   );
 }
@@ -20,8 +20,8 @@ export function TextField({
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
-    <label className="flex min-h-11 items-center gap-4 px-4 py-1.5">
-      <span className="text-body w-32 shrink-0 text-label">{label}</span>
+    <label className="control-h flex items-center gap-4 px-3 py-1.5">
+      <span className="text-body w-28 shrink-0 text-label">{label}</span>
       <input
         {...props}
         className="text-body min-h-8 w-full min-w-0 flex-1 rounded-md bg-transparent text-label placeholder:text-label-3 focus:outline-none focus-visible:outline-2 focus-visible:outline-blue"
@@ -40,8 +40,8 @@ export function SelectField({
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement> & { label: string; children: ReactNode }) {
   return (
-    <label className="flex min-h-11 items-center gap-4 px-4 py-1.5">
-      <span className="text-body w-32 shrink-0 text-label">{label}</span>
+    <label className="control-h flex items-center gap-4 px-3 py-1.5">
+      <span className="text-body w-28 shrink-0 text-label">{label}</span>
       <select
         {...props}
         className="text-body min-h-8 w-full min-w-0 flex-1 appearance-none rounded-md bg-transparent text-right text-label focus:outline-none focus-visible:outline-2 focus-visible:outline-blue"
@@ -57,8 +57,8 @@ export function TextAreaField({
   ...props
 }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) {
   return (
-    <label className="block px-4 py-2.5">
-      <span className="text-footnote mb-1 block uppercase tracking-wide text-label-2">{label}</span>
+    <label className="block px-3 py-2">
+      <span className="text-caption-1 mb-1 block uppercase tracking-wide text-label-2">{label}</span>
       <textarea
         {...props}
         rows={props.rows ?? 4}

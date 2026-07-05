@@ -91,10 +91,21 @@ On iPhone: open the site in Safari → Share → **Add to Home Screen**. It inst
 
 ## Gmail sync (read-only)
 
-- **Manual:** "Sync Recent Email" on any broker record with an email address pulls recent thread subjects/dates/snippets (never bodies) as `email` interactions, deep-linked back to Gmail.
-- **Nightly:** `/api/cron/gmail-sync` does the same across all brokers with email addresses.
-- Idempotent per `(broker, thread)`; re-syncs refresh threads that got new replies. Sync failures degrade gracefully and never block the UI.
-- The CRM is an index into Gmail, not a copy of it.
+Sync is **on** (`NEXT_PUBLIC_ENABLE_GMAIL_SYNC=true` in `.env.local`). One-time setup:
+
+1. Enable the **Gmail API** in the Google Cloud project behind the OAuth client (APIs & Services → Library).
+2. Sign out of Vía OS and back in once — the consent screen will ask for `gmail.readonly` and the refresh token gets stored for the nightly cron.
+
+What it does:
+
+- **Reply-triggered contact creation.** The nightly cron (and `POST /api/gmail/discover` on demand) scans your recent **sent** mail and creates a skeleton contact for every To/Cc address the CRM doesn't know yet. Because it reads sent mail only, a contact appears **only when you actually reply/write to someone** — spam that merely lands in your inbox never becomes a contact. Skeletons are created as type **Other** (never Broker — you re-type them yourself), source "Auto-created from sent email", and are **auto-linked to a company by email domain** (`jono@avant.org.au` → the Avant company record). Free-mail domains (gmail.com, outlook.com, …) never create companies. Noreply-style robot addresses are ignored.
+- **Thread indexing for every contact.** "Sync Recent Email" on any contact with an email address pulls recent thread subjects/dates/snippets (never bodies) as `email` interactions, deep-linked back to Gmail. The nightly `/api/cron/gmail-sync` does the same across **all contacts** with an email address (not just brokers), after running discovery first. Newly discovered contacts get their threads synced immediately, so their email tab is populated from the first look.
+- Idempotent per `(contact, thread)`; re-syncs refresh threads that got new replies. Sync failures degrade gracefully and never block the UI (a discovery failure never aborts the thread sync).
+- Scopes are `gmail.readonly` only — never send or modify. The CRM is an index into Gmail, not a copy of it: subject, date, snippet, and thread id are stored; bodies never are.
+
+## Companies
+
+Companies are first-class records (Attio-style org views: people, org-wide interaction feed, deals) but are **auto-created, never hand-maintained**: typing a company name on a contact find-or-creates the record (`ensureCompanyByName`, case-insensitive), and the Gmail sync auto-links new contacts by email domain (`ensureCompanyByDomain`). Free-mail domains never become companies. You can edit a company's details (name, domain, location, notes) but there is deliberately no "new company" form — the graph builds itself from contacts and email.
 
 ## MCP server (drive the CRM from Claude)
 

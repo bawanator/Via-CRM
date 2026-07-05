@@ -46,9 +46,18 @@ function isPipelineStage(id: string): id is DealPipelineStage {
   return (PIPELINE_STAGES as string[]).includes(id);
 }
 
+// Broker shorthand for the card's single metadata line: the last name (or the
+// whole name when it's a single word) keeps the line short at board density.
+function brokerShortName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  return parts[parts.length - 1] ?? fullName;
+}
+
 // Funder is deliberately absent — it never appears on the board.
+// Compact: one truncated title line + ONE metadata line, so 50 cards scan fast.
 function CardBody({ deal }: { deal: DealWithBroker }) {
-  const amountLine = [
+  const metaLine = [
+    deal.broker ? brokerShortName(deal.broker.full_name) : null,
     deal.loan_amount != null ? formatAmount(deal.loan_amount) : null,
     deal.product ? PRODUCT_LABELS[deal.product] : null,
   ]
@@ -57,11 +66,10 @@ function CardBody({ deal }: { deal: DealWithBroker }) {
 
   return (
     <>
-      <p className="text-headline text-label">{deal.name}</p>
-      {deal.broker ? <p className="text-footnote mt-0.5 text-label-2">{deal.broker.full_name}</p> : null}
-      {amountLine ? <p className="text-footnote text-label-2">{amountLine}</p> : null}
+      <p className="text-headline truncate text-label">{deal.name}</p>
+      {metaLine ? <p className="text-caption-1 mt-0.5 truncate text-label-2">{metaLine}</p> : null}
       {deal.status === "lost" && deal.loss_reason ? (
-        <div className="mt-1.5">
+        <div className="mt-1">
           <Badge tone="gray">{LOSS_REASON_LABELS[deal.loss_reason]}</Badge>
         </div>
       ) : null}
@@ -106,7 +114,7 @@ function DealCard({
           open();
         }
       }}
-      className={`block cursor-grab rounded-xl bg-card p-3 text-left focus-visible:outline-2 focus-visible:outline-blue active:cursor-grabbing ${
+      className={`card block cursor-grab rounded-lg bg-card px-2.5 py-2 text-left focus-visible:outline-2 focus-visible:outline-blue active:cursor-grabbing ${
         isDragging ? "opacity-40" : "pressable"
       }`}
     >
@@ -130,21 +138,21 @@ function Column({
   return (
     <section
       aria-label={title}
-      className="w-[80vw] max-w-72 shrink-0 snap-center md:w-auto md:min-w-0 md:max-w-none md:flex-1"
+      className="w-[76vw] max-w-64 shrink-0 snap-center md:w-60 md:max-w-none md:snap-align-none"
     >
-      <header className="mb-2 flex items-baseline justify-between px-1">
-        <h2 className="text-footnote uppercase tracking-wide text-label-2">{title}</h2>
-        <span className="text-footnote text-label-3">{count}</span>
+      <header className="mb-1.5 flex items-baseline justify-between px-1">
+        <h2 className="text-caption-1 uppercase tracking-wide text-label-2">{title}</h2>
+        <span className="text-caption-1 text-label-3">{count}</span>
       </header>
       <div
         ref={setNodeRef}
-        className={`flex min-h-24 flex-col gap-2 rounded-xl p-1 transition-colors ${
+        className={`flex min-h-24 flex-col gap-1.5 rounded-xl p-1 transition-colors ${
           isOver ? "bg-fill-2" : ""
         }`}
       >
         {children}
         {count === 0 ? (
-          <p className="text-footnote rounded-xl px-3 py-3 text-center text-label-3">Drop here</p>
+          <p className="text-caption-1 rounded-lg px-2.5 py-2.5 text-center text-label-3">Drop here</p>
         ) : null}
       </div>
     </section>
@@ -244,7 +252,9 @@ export function DealBoard({ deals: initialDeals }: { deals: DealWithBroker[] }) 
         <p className="text-footnote mb-2 rounded-lg bg-red/10 px-3 py-2 text-red">{error}</p>
       ) : null}
 
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:overflow-visible md:px-0">
+      {/* Columns are fixed-width (~w-60) so the board packs more cards per
+          screen; the rail scrolls horizontally at every breakpoint. */}
+      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:snap-none md:px-0">
         {PIPELINE_STAGES.map((stage) => {
           const column = deals.filter((d) => d.status === "live" && d.pipeline_stage === stage);
           return (
@@ -269,7 +279,7 @@ export function DealBoard({ deals: initialDeals }: { deals: DealWithBroker[] }) 
 
       <DragOverlay>
         {activeDeal ? (
-          <div className="rounded-xl bg-card p-3 shadow-lg ring-1 ring-separator">
+          <div className="rounded-lg bg-card px-2.5 py-2 shadow-lg ring-1 ring-separator">
             <CardBody deal={activeDeal} />
           </div>
         ) : null}
@@ -289,7 +299,7 @@ export function DealBoard({ deals: initialDeals }: { deals: DealWithBroker[] }) 
               key={reason}
               type="button"
               onClick={() => losing && void markLost(losing, reason)}
-              className="text-body pressable flex min-h-11 w-full items-center px-4 py-2.5 text-left text-label"
+              className="text-body pressable control-h flex w-full items-center px-3 py-1.5 text-left text-label"
             >
               {LOSS_REASON_LABELS[reason]}
             </button>

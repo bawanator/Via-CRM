@@ -13,7 +13,7 @@ import type {
 import { assertOk, isUuid, type Db } from "@/lib/crm/db";
 
 export type DealWithBroker = DealRow & {
-  broker: { id: string; full_name: string; company: string | null } | null;
+  broker: { id: string; full_name: string; company: { id: string; name: string } | null } | null;
 };
 
 export type DealDetail = DealWithBroker & {
@@ -24,7 +24,7 @@ export type DealDetail = DealWithBroker & {
 
 // The broker on a deal is a Broker-type contact (FK column keeps the name
 // broker_id); embed by the real target table, `contacts`.
-const DEAL_WITH_BROKER = "*, broker:contacts(id, full_name, company)";
+const DEAL_WITH_BROKER = "*, broker:contacts(id, full_name, company:companies(id, name))";
 
 export async function listDeals(
   db: Db,

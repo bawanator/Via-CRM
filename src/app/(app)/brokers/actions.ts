@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createContact, updateContact } from "@/lib/crm/contacts";
+import { ensureCompanyByName } from "@/lib/crm/companies";
 import { addContactType } from "@/lib/crm/contactTypes";
 import { logInteraction } from "@/lib/crm/interactions";
 import { addDriveLink, deleteDriveLink } from "@/lib/crm/driveLinks";
@@ -25,8 +26,11 @@ type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 const uuidSchema = z.string().uuid();
 
 // The columns the inline detail editor is allowed to write single-field.
+// `company_name` is a pseudo-field: it is resolved to company_id via
+// ensureCompanyByName — the contacts table has no company text column anymore.
 const INLINE_CONTACT_FIELDS = [
-  "company",
+  "full_name",
+  "company_name",
   "email",
   "phone",
   "linkedin_url",
@@ -47,12 +51,24 @@ function failed(e: unknown, fallback: string): ActionResult {
   return { ok: false, error: e instanceof Error ? e.message : fallback };
 }
 
+// Strip the schema-level `company_name` and (when it was provided) resolve it
+// to a company_id — find-or-create by name. The name never reaches the table.
+async function resolveCompanyField<T extends { company_name?: string | null }>(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  data: T,
+): Promise<Omit<T, "company_name"> & { company_id?: string | null }> {
+  const { company_name, ...rest } = data;
+  if (!("company_name" in data)) return rest;
+  const company_id = await ensureCompanyByName(supabase, company_name ?? null);
+  return { ...rest, company_id };
+}
+
 export async function createContactAction(input: unknown): Promise<ActionResult> {
   const parsed = contactInputSchema.safeParse(input);
   if (!parsed.success) return invalid(parsed.error);
   try {
     const supabase = await createClient();
-    const contact = await createContact(supabase, parsed.data);
+    const contact = await createContact(supabase, await resolveCompanyField(supabase, parsed.data));
     revalidatePath("/brokers");
     return { ok: true, id: contact.id };
   } catch (e) {
@@ -67,7 +83,7 @@ export async function updateContactAction(id: string, fields: unknown): Promise<
   if (!parsed.success) return invalid(parsed.error);
   try {
     const supabase = await createClient();
-    await updateContact(supabase, idParsed.data, parsed.data);
+    await updateContact(supabase, idParsed.data, await resolveCompanyField(supabase, parsed.data));
     revalidatePath("/brokers");
     revalidatePath(`/brokers/${idParsed.data}`);
     return { ok: true, id: idParsed.data };
@@ -88,7 +104,7 @@ export async function updateContactFieldAction(id: string, field: string, value:
   if (!parsed.success) return invalid(parsed.error);
   try {
     const supabase = await createClient();
-    await updateContact(supabase, idParsed.data, parsed.data);
+    await updateContact(supabase, idParsed.data, await resolveCompanyField(supabase, parsed.data));
     revalidatePath("/brokers");
     revalidatePath(`/brokers/${idParsed.data}`);
     return { ok: true, id: idParsed.data };
@@ -130,7 +146,7 @@ export async function addContactTypeAction(
   }
 }
 
-export async function logInteractionAction(input: unknown): Promise<ActionResult> {
+async function parseAndLogInteraction(input: unknown): Promise<ActionResult> {
   const parsed = interactionInputSchema.safeParse(input);
   if (!parsed.success) return invalid(parsed.error);
   try {
@@ -148,6 +164,25 @@ export async function logInteractionAction(input: unknown): Promise<ActionResult
   } catch (e) {
     return failed(e, "Could not log the interaction");
   }
+}
+
+export async function logInteractionAction(input: unknown): Promise<ActionResult> {
+  return parseAndLogInteraction(input);
+}
+
+// Force the interaction type server-side so the Calls / Notes composers can
+// never be repurposed to write another type.
+function withType(input: unknown, type: "call" | "note"): Record<string, unknown> {
+  const base = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : {};
+  return { ...base, type };
+}
+
+export async function logCallAction(input: unknown): Promise<ActionResult> {
+  return parseAndLogInteraction(withType(input, "call"));
+}
+
+export async function addNoteAction(input: unknown): Promise<ActionResult> {
+  return parseAndLogInteraction(withType(input, "note"));
 }
 
 export async function addDriveLinkAction(input: unknown): Promise<ActionResult> {

@@ -99,6 +99,29 @@ export const INTERACTION_TYPE_LABELS: Record<InteractionType, string> = {
 // (contact_types table) so more can be added without code.
 export const DEFAULT_CONTACT_TYPE = "Broker";
 
+// Free-mail domains never become company records or company domains.
+export const FREE_MAIL_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "outlook.com",
+  "outlook.com.au",
+  "hotmail.com",
+  "live.com",
+  "live.com.au",
+  "yahoo.com",
+  "yahoo.com.au",
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  "protonmail.com",
+  "proton.me",
+  "bigpond.com",
+  "bigpond.net.au",
+  "optusnet.com.au",
+  "aol.com",
+  "msn.com",
+]);
+
 // A broker is "gone cold" after this many days without contact.
 export const COLD_AFTER_DAYS = 30;
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { BookIcon, ChartIcon, ClockIcon, DealsIcon, PeopleIcon, SunIcon } from "@/components/ui/icons";
+import { CompanyIcon } from "@/components/companies/CompanyIcon";
 import { CommandSearch } from "@/components/shell/CommandSearch";
 
 const TABS = [
@@ -13,9 +14,15 @@ const TABS = [
   { href: "/loan-book", label: "Loan Book", icon: BookIcon },
 ] as const;
 
-// Reports and Audit live in the sidebar on desktop (and behind search on
-// mobile) — neither is a daily destination, so they don't earn a tab slot.
-const DESKTOP_EXTRAS = [
+// Companies, Reports and Audit live in the sidebar on desktop (and behind
+// search on mobile) — the mobile bar keeps its four daily-destination slots.
+// Companies sits beside Brokers: people and the orgs they belong to.
+const DESKTOP_NAV = [
+  { href: "/", label: "Today", icon: SunIcon },
+  { href: "/brokers", label: "Brokers", icon: PeopleIcon },
+  { href: "/companies", label: "Companies", icon: CompanyIcon },
+  { href: "/deals", label: "Deals", icon: DealsIcon },
+  { href: "/loan-book", label: "Loan Book", icon: BookIcon },
   { href: "/reports", label: "Reports", icon: ChartIcon },
   { href: "/audit", label: "Audit", icon: ClockIcon },
 ] as const;
@@ -33,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="hidden w-60 shrink-0 flex-col border-r-[0.5px] border-separator px-3 py-5 md:flex">
         <p className="text-headline mb-6 px-3 text-label">Vía OS</p>
         <nav className="flex flex-col gap-0.5" aria-label="Primary">
-          {[...TABS, ...DESKTOP_EXTRAS].map(({ href, label, icon: Icon }) => (
+          {DESKTOP_NAV.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}

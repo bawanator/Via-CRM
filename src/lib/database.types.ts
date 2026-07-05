@@ -35,7 +35,7 @@ type RowMeta = {
 export type ContactRow = RowMeta & {
   id: string;
   full_name: string;
-  company: string | null;
+  company_id: string | null; // FK -> companies.id
   email: string | null;
   phone: string | null;
   linkedin_url: string | null;
@@ -52,7 +52,7 @@ export type ContactRow = RowMeta & {
 export type ContactInsert = Partial<RowMeta> & {
   id?: string;
   full_name: string;
-  company?: string | null;
+  company_id?: string | null;
   email?: string | null;
   phone?: string | null;
   linkedin_url?: string | null;
@@ -72,6 +72,24 @@ export type ContactUpdate = Partial<ContactInsert>;
 export type BrokerRow = ContactRow;
 export type BrokerInsert = ContactInsert;
 export type BrokerUpdate = ContactUpdate;
+
+export type CompanyRow = RowMeta & {
+  id: string;
+  name: string;
+  domain: string | null; // primary email domain, lowercase, never a free-mail domain
+  location: string | null;
+  notes: string | null;
+};
+
+export type CompanyInsert = Partial<RowMeta> & {
+  id?: string;
+  name: string;
+  domain?: string | null;
+  location?: string | null;
+  notes?: string | null;
+};
+
+export type CompanyUpdate = Partial<CompanyInsert>;
 
 export type ContactTypeRow = {
   name: string;
@@ -312,6 +330,7 @@ export type Database = {
   public: {
     Tables: {
       contacts: Table<ContactRow, ContactInsert, ContactUpdate>;
+      companies: Table<CompanyRow, CompanyInsert, CompanyUpdate>;
       contact_types: Table<ContactTypeRow, { name: string; sort?: number }, Partial<ContactTypeRow>>;
       deals: Table<DealRow, DealInsert, DealUpdate>;
       guarantors: Table<GuarantorRow, GuarantorInsert, GuarantorUpdate>;

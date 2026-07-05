@@ -60,7 +60,10 @@ const optionalAmount = z.preprocess(
 
 export const contactInputSchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(200),
-  company: optionalText,
+  // A company NAME typed by the user (or an LLM). Server actions / MCP resolve
+  // it to a company record via ensureCompanyByName and pass company_id to the
+  // database — this field never lands in the contacts table directly.
+  company_name: optionalText,
   email: optionalEmail,
   phone: optionalText,
   linkedin_url: optionalUrl,
@@ -189,6 +192,22 @@ export const contactTypeInputSchema = z.object({
   sort: z.number().int().min(0).max(9999).optional(),
 });
 
+export const companyInputSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(200),
+  domain: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : typeof v === "string" ? v.trim().toLowerCase().replace(/^@/, "") : v),
+    z
+      .string()
+      .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/, "Not a valid domain")
+      .nullable()
+      .optional(),
+  ),
+  location: optionalText,
+  notes: optionalText,
+});
+
+export const companyUpdateSchema = companyInputSchema.partial();
+
 export const savedReportInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   spec: z.record(z.string(), z.unknown()),
@@ -199,6 +218,7 @@ export const savedReportInputSchema = z.object({
 export const savedReportUpdateSchema = savedReportInputSchema.partial();
 
 export type ContactInput = z.infer<typeof contactInputSchema>;
+export type CompanyInput = z.infer<typeof companyInputSchema>;
 export type BrokerInput = ContactInput;
 export type DealInput = z.infer<typeof dealInputSchema>;
 export type GuarantorInput = z.infer<typeof guarantorInputSchema>;

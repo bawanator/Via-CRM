@@ -37,7 +37,7 @@ export function InlineDate({
             cancelRef.current = false;
             start();
           }}
-          className="text-body pressable flex min-h-11 w-full items-center rounded-md px-2 -mx-2 text-left transition-colors hover:bg-fill-2 focus-visible:outline-2 focus-visible:outline-blue"
+          className="text-body pressable control-h flex w-full items-center rounded-md px-2 -mx-2 text-left transition-colors hover:bg-fill-2 focus-visible:outline-2 focus-visible:outline-blue"
         >
           {value ? (
             <span className="truncate text-label">{formatDate(value)}</span>
@@ -77,7 +77,7 @@ export function InlineDate({
           }
           save(draft);
         }}
-        className="text-body min-h-11 w-full rounded-md bg-fill-2 px-2 -mx-2 text-label focus:outline-none focus-visible:outline-2 focus-visible:outline-blue disabled:opacity-60"
+        className="text-body control-h w-full rounded-md bg-fill-2 px-2 -mx-2 text-label focus:outline-none focus-visible:outline-2 focus-visible:outline-blue disabled:opacity-60"
       />
       {pending ? <p className="text-caption-1 mt-0.5 px-0.5 text-label-3">Saving…</p> : null}
       {error ? <p className="text-footnote mt-0.5 px-0.5 text-red">{error}</p> : null}

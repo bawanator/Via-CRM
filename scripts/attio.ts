@@ -3,7 +3,7 @@
 // everything is exported so tests can exercise it directly. The CLI wrapper
 // lives in scripts/import-attio.ts.
 import { parse } from "csv-parse/sync";
-import type { BrokerInsert, BrokerStage } from "@/lib/database.types";
+import type { BrokerStage, ContactInsert } from "@/lib/database.types";
 import { BROKER_STAGES } from "@/lib/domain";
 import { brokerInputSchema } from "@/lib/schemas";
 
@@ -23,8 +23,14 @@ export type ParseSkip = { row: number; reason: string };
 
 export type PeopleParseResult = { people: AttioPerson[]; skipped: ParseSkip[] };
 
+// A planned contact insert, still carrying the company NAME. Companies are
+// linked records now (contacts.company_id) — the pure layer has no database,
+// so the CLI resolves each distinct company_name via ensureCompanyByName and
+// swaps it for a company_id before inserting.
+export type PlannedContact = Omit<ContactInsert, "company_id"> & { company_name: string | null };
+
 export type ImportPlan = {
-  creates: BrokerInsert[];
+  creates: PlannedContact[];
   skips: { person: AttioPerson; reason: string }[];
 };
 
@@ -222,7 +228,7 @@ export function planImport(
   existing: { emails: Set<string>; names: Set<string> },
   stageMap: Map<string, BrokerStage>,
 ): ImportPlan {
-  const creates: BrokerInsert[] = [];
+  const creates: PlannedContact[] = [];
   const skips: ImportPlan["skips"] = [];
   const seenEmails = new Set<string>();
   const seenNames = new Set<string>();
@@ -256,7 +262,7 @@ export function planImport(
 
     const parsed = brokerInputSchema.safeParse({
       full_name: person.fullName,
-      company: person.company,
+      company_name: person.company,
       email,
       phone: person.phone,
       linkedin_url: person.linkedin,
@@ -273,7 +279,7 @@ export function planImport(
     const d = parsed.data;
     creates.push({
       full_name: d.full_name,
-      company: d.company ?? null,
+      company_name: d.company_name ?? null,
       email: d.email ?? null,
       phone: d.phone ?? null,
       linkedin_url: d.linkedin_url ?? null,

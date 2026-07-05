@@ -11,6 +11,7 @@ import { searchAll } from "../src/lib/crm/search";
 import { listSavedReports, listPinnedReports } from "../src/lib/crm/savedReports";
 import { runReport } from "../src/lib/crm/reports";
 import { listContactTypes } from "../src/lib/crm/contactTypes";
+import { listCompanies, getCompany } from "../src/lib/crm/companies";
 import { listAuditLog } from "../src/lib/crm/audit";
 
 config({ path: ".env.local" });
@@ -53,6 +54,11 @@ async function main() {
   await check("searchAll('a')", () => searchAll(db, "a"));
   await check("searchAll('Smith, John') — comma safety", () => searchAll(db, "Smith, John"));
   await check("listContactTypes", () => listContactTypes(db));
+  const companies = await listCompanies(db, {});
+  await check("listCompanies", async () => companies);
+  await check("getCompany(first — people/org emails/deals)", () =>
+    companies[0] ? getCompany(db, companies[0].id) : Promise.resolve(null),
+  );
   await check("listAuditLog", () => listAuditLog(db, {}));
 
   const reports = await listSavedReports(db);

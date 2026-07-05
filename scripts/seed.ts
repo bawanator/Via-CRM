@@ -29,6 +29,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PIPELINE_STAGES } from "@/lib/domain";
 import { addDaysISO, addMonthsClamped, todayISO } from "@/lib/dates";
 import {
+  companyInputSchema,
   contactInputSchema,
   dealInputSchema,
   driveLinkInputSchema,
@@ -38,6 +39,7 @@ import {
   savedReportInputSchema,
   taskInputSchema,
 } from "@/lib/schemas";
+import { createCompany } from "@/lib/crm/companies";
 import { createContact } from "@/lib/crm/contacts";
 import { createDeal, moveDealStage } from "@/lib/crm/deals";
 import { addGuarantor } from "@/lib/crm/guarantors";
@@ -64,7 +66,8 @@ async function main() {
       process.exit(1);
     }
     console.log(`--force: wiping existing CRM data (${count} contact(s) and everything attached)…`);
-    // FK-safe order: children before parents (contact_types is left untouched).
+    // FK-safe order: children before parents (contact_types is left untouched;
+    // companies last — contacts reference them).
     const tables = [
       "tasks",
       "guarantors",
@@ -74,6 +77,7 @@ async function main() {
       "interactions",
       "deals",
       "contacts",
+      "companies",
     ] as const;
     for (const table of tables) {
       const { error } = await db.from(table).delete().not("id", "is", null);
@@ -91,8 +95,14 @@ async function main() {
   const at = (daysAgo: number, hour: number) => `${ago(daysAgo)}T${String(hour).padStart(2, "0")}:00:00+10:00`;
 
   // --- Schema-validated writers --------------------------------------------
-  const seedContact = (input: z.input<typeof contactInputSchema>) =>
-    createContact(db, contactInputSchema.parse(input));
+  const seedCompany = (input: z.input<typeof companyInputSchema>) =>
+    createCompany(db, companyInputSchema.parse(input));
+  // Contacts link to companies by id (the free-text column is gone) — the
+  // company_name schema field is a UI/MCP convenience the seed doesn't use.
+  const seedContact = (input: z.input<typeof contactInputSchema>, companyId: string | null = null) => {
+    const { company_name: _companyName, ...fields } = contactInputSchema.parse(input);
+    return createContact(db, { ...fields, company_id: companyId });
+  };
   const seedDeal = (input: z.input<typeof dealInputSchema>) => createDeal(db, dealInputSchema.parse(input));
   // Create a live deal at Scenario, then walk it to its current stage so the
   // audit log records real transitions (stage_progression reads from them).
@@ -123,100 +133,153 @@ async function main() {
   const seedSavedReport = (input: z.input<typeof savedReportInputSchema>) =>
     createSavedReport(db, savedReportInputSchema.parse(input));
 
+  // --- Companies (first-class records; contacts link by company_id) ----------
+  // In production these are auto-created (typed names via ensureCompanyByName,
+  // email domains via the Gmail sync); the seed creates them explicitly so
+  // domains and locations are set for the demo.
+  const aria = await seedCompany({
+    name: "Aria Capital",
+    domain: "ariacapital.com.au",
+    location: "Melbourne",
+    notes: "Boutique brokerage with a strong developer book — two of our best introducers sit here.",
+  });
+  const westside = await seedCompany({
+    name: "Westside Finance",
+    domain: "westsidefinance.com.au",
+    location: "Melbourne",
+  });
+  const meridian = await seedCompany({
+    name: "Meridian Commercial",
+    domain: "meridiancommercial.com.au",
+    location: "Brisbane",
+  });
+  const flourish = await seedCompany({
+    name: "Flourish Finance",
+    domain: "flourishfinance.com.au",
+    location: "Melbourne",
+  });
+  // Companies for the non-broker contacts (name-only, like ensureCompanyByName
+  // would create from a typed name).
+  const nguyenLegal = await seedCompany({ name: "Nguyen & Associates", location: "Sydney" });
+  const apex = await seedCompany({ name: "Apex Valuations", location: "Melbourne" });
+  const rossi = await seedCompany({ name: "Rossi Property Group", location: "Brisbane" });
+  console.log("Companies: 7 (4 brokerages with domains + 3 from non-broker contacts)");
+
   // --- Contacts: 5 brokers (all 4 stages) + solicitor, valuer, borrower ------
   // Broker type is the default; location spans Sydney/Melbourne/Brisbane so the
   // location filter demos. next_action(_date) apply only to Broker-type rows.
-  const sarah = await seedContact({
-    full_name: "Sarah Chen",
-    company: "Aria Capital",
-    email: "sarah.chen@ariacapital.com.au",
-    phone: "0412 338 190",
-    linkedin_url: "https://www.linkedin.com/in/sarah-chen-ariacapital",
-    location: "Sydney",
-    stage: "prime",
-    source: "Referral — James Holt",
-    notes: "Top-tier introducer with a strong developer book across inner Sydney; expects same-day scenario turnaround.",
-    next_action: "Send updated bridging rate card",
-    next_action_date: ahead(3),
-  });
-  const tom = await seedContact({
-    full_name: "Tom Papadopoulos",
-    company: "Westside Finance",
-    email: "tom@westsidefinance.com.au",
-    phone: "0433 901 224",
-    linkedin_url: "https://www.linkedin.com/in/tom-papadopoulos-westside",
-    location: "Melbourne",
-    stage: "active_submitter",
-    source: "CAFBA conference 2025",
-    notes: "Solid commercial book out of the inner west. Prefers WhatsApp for quick scenarios.",
-    next_action: "Chase valuer access for 8 Miller St",
-    next_action_date: ahead(1),
-  });
+  // Sarah AND Mei-Ling both sit at Aria Capital, so the company People tab
+  // demos with multiple people.
+  const sarah = await seedContact(
+    {
+      full_name: "Sarah Chen",
+      email: "sarah.chen@ariacapital.com.au",
+      phone: "0412 338 190",
+      linkedin_url: "https://www.linkedin.com/in/sarah-chen-ariacapital",
+      location: "Sydney",
+      stage: "prime",
+      source: "Referral — James Holt",
+      notes: "Top-tier introducer with a strong developer book across inner Sydney; expects same-day scenario turnaround.",
+      next_action: "Send updated bridging rate card",
+      next_action_date: ahead(3),
+    },
+    aria.id,
+  );
+  const tom = await seedContact(
+    {
+      full_name: "Tom Papadopoulos",
+      email: "tom@westsidefinance.com.au",
+      phone: "0433 901 224",
+      linkedin_url: "https://www.linkedin.com/in/tom-papadopoulos-westside",
+      location: "Melbourne",
+      stage: "active_submitter",
+      source: "CAFBA conference 2025",
+      notes: "Solid commercial book out of the inner west. Prefers WhatsApp for quick scenarios.",
+      next_action: "Chase valuer access for 8 Miller St",
+      next_action_date: ahead(1),
+    },
+    westside.id,
+  );
   // Overdue next action — surfaces red in the Today view.
-  const priya = await seedContact({
-    full_name: "Priya Sharma",
-    company: "Meridian Commercial",
-    email: "priya.sharma@meridiancommercial.com.au",
-    phone: "0401 552 718",
-    location: "Brisbane",
-    stage: "active_submitter",
-    source: "Referral — Tom Papadopoulos",
-    notes: "Development-site specialist across south-east Queensland.",
-    next_action: "Request feasibility + DA docs for Kurrajong",
-    next_action_date: ago(4),
-  });
+  const priya = await seedContact(
+    {
+      full_name: "Priya Sharma",
+      email: "priya.sharma@meridiancommercial.com.au",
+      phone: "0401 552 718",
+      location: "Brisbane",
+      stage: "active_submitter",
+      source: "Referral — Tom Papadopoulos",
+      notes: "Development-site specialist across south-east Queensland.",
+      next_action: "Request feasibility + DA docs for Kurrajong",
+      next_action_date: ago(4),
+    },
+    meridian.id,
+  );
   // Gone cold — sole interaction is 45 days back (see interactions below).
-  const meiling = await seedContact({
-    full_name: "Mei-Ling Wong",
-    company: "Harbourline Finance",
-    email: "meiling.wong@harbourlinefinance.com.au",
-    phone: "0438 220 456",
-    location: "Sydney",
-    stage: "engaged",
-    source: "CAFBA lunch, March",
-    notes: "Warm first meeting; strong lower north shore network. Needs a reactivation touch.",
-    next_action: "Send credit appetite one-pager",
-  });
-  await seedContact({
-    full_name: "Dave Kowalski",
-    company: "Fortitude Broking",
-    email: "dave.kowalski@fortitudebroking.com.au",
-    location: "Melbourne",
-    stage: "introduced",
-    source: "Introduced by Sarah Chen",
-    notes: "Not yet met. Commercial broker who writes a lot of SMSF lends.",
-    next_action: "Intro call",
-    next_action_date: ahead(7),
-  });
+  // Second broker at Aria Capital (with Sarah).
+  const meiling = await seedContact(
+    {
+      full_name: "Mei-Ling Wong",
+      email: "meiling.wong@ariacapital.com.au",
+      phone: "0438 220 456",
+      location: "Sydney",
+      stage: "engaged",
+      source: "CAFBA lunch, March",
+      notes: "Sarah's colleague at Aria — warm first meeting; strong lower north shore network. Needs a reactivation touch.",
+      next_action: "Send credit appetite one-pager",
+    },
+    aria.id,
+  );
+  await seedContact(
+    {
+      full_name: "Dave Kowalski",
+      email: "dave.kowalski@flourishfinance.com.au",
+      location: "Melbourne",
+      stage: "introduced",
+      source: "Introduced by Sarah Chen",
+      notes: "Not yet met. Commercial broker who writes a lot of SMSF lends.",
+      next_action: "Intro call",
+      next_action_date: ahead(7),
+    },
+    flourish.id,
+  );
   // Non-broker contacts — typed, located, no broker stage / next action.
-  await seedContact({
-    full_name: "Rebecca Nguyen",
-    company: "Nguyen & Associates",
-    email: "rebecca@nguyenlegal.com.au",
-    phone: "0407 118 664",
-    type: "Solicitor",
-    location: "Sydney",
-    notes: "Panel solicitor — handles our security documentation and settlements.",
-  });
-  await seedContact({
-    full_name: "Michael O'Brien",
-    company: "Apex Valuations",
-    email: "michael.obrien@apexvaluations.com.au",
-    phone: "0419 703 285",
-    type: "Valuer",
-    location: "Melbourne",
-    notes: "Preferred panel valuer for commercial and residual-stock security.",
-  });
-  const angela = await seedContact({
-    full_name: "Angela Rossi",
-    company: "Rossi Property Group",
-    email: "angela@rossigroup.com.au",
-    phone: "0402 664 019",
-    type: "Borrower",
-    location: "Brisbane",
-    notes: "Repeat borrower — director of Rossi Property Group; currently purchasing in North Sydney.",
-  });
-  console.log("Contacts: 8 (5 brokers — 1 prime, 2 active_submitter, 1 engaged/cold, 1 introduced — + solicitor, valuer, borrower)");
+  await seedContact(
+    {
+      full_name: "Rebecca Nguyen",
+      email: "rebecca@nguyenlegal.com.au",
+      phone: "0407 118 664",
+      type: "Solicitor",
+      location: "Sydney",
+      notes: "Panel solicitor — handles our security documentation and settlements.",
+    },
+    nguyenLegal.id,
+  );
+  await seedContact(
+    {
+      full_name: "Michael O'Brien",
+      email: "michael.obrien@apexvaluations.com.au",
+      phone: "0419 703 285",
+      type: "Valuer",
+      location: "Melbourne",
+      notes: "Preferred panel valuer for commercial and residual-stock security.",
+    },
+    apex.id,
+  );
+  const angela = await seedContact(
+    {
+      full_name: "Angela Rossi",
+      email: "angela@rossigroup.com.au",
+      phone: "0402 664 019",
+      type: "Borrower",
+      location: "Brisbane",
+      notes: "Repeat borrower — director of Rossi Property Group; currently purchasing in North Sydney.",
+    },
+    rossi.id,
+  );
+  console.log(
+    "Contacts: 8 (5 brokers — 1 prime, 2 active_submitter, 1 engaged/cold, 1 introduced — + solicitor, valuer, borrower; Sarah + Mei-Ling both at Aria Capital)",
+  );
 
   // --- Deals: 4 live (Scenario→Docs), 2 settled, 2 lost ----------------------
   // The maturing settled deal matures ~45 days out: pick the maturity target and
@@ -360,18 +423,24 @@ async function main() {
     { broker_id: sarah.id, deal_id: chesterfield.id, type: "meeting", occurred_at: at(2, 10), summary: "Coffee at Cross Eatery — walked the Chesterfield residual stock runway and the Gasworks exit timing." },
     { broker_id: sarah.id, deal_id: harbourSt.id, type: "call", occurred_at: at(6, 14), summary: "Ran the Surry Hills bridging scenario; sponsor wants 70% LVR, pricing indication requested." },
     { broker_id: sarah.id, type: "email", occurred_at: at(13, 11), summary: "Sent Q3 settlement volumes and flagged two upcoming residual stock scenarios." },
+    // Sarah — a note too, so the Notes tab has content.
+    { broker_id: sarah.id, type: "note", occurred_at: at(5, 16), summary: "Sarah mentioned Aria is hiring two more brokers in Q1 — expect referral flow to lift. Keep the rate card current and turn her scenarios around same-day." },
     // Tom
     { broker_id: tom.id, deal_id: millerSt.id, type: "call", occurred_at: at(4, 15), summary: "Valuer access confirmed for 8 Miller St; report expected Friday." },
     { broker_id: tom.id, type: "email", occurred_at: at(10, 12), summary: "Answered term sheet questions — borrower comfortable with the default rate clause." },
+    { broker_id: tom.id, type: "note", occurred_at: at(9, 17), summary: "Tom's book skews SMSF and owner-occupier commercial. He'll bring us the deals the banks decline on postcode risk — good fit for bridging under 70% LVR." },
     // Priya — contactable (7 days) even though her next action is overdue.
     { broker_id: priya.id, deal_id: kurrajong.id, type: "meeting", occurred_at: at(7, 11), summary: "Met on the Kurrajong equity release; sponsor holds a DA-approved parcel next door." },
+    { broker_id: priya.id, deal_id: kurrajong.id, type: "call", occurred_at: at(1, 9), summary: "Called Priya re: Kurrajong docs — solicitor has the mortgage pack, guarantor signing booked for Thursday. She flagged a new residual stock scenario in Newstead, ~$2.1m." },
     // Mei-Ling — single touch 45 days back → cold (> 30 days).
     { broker_id: meiling.id, type: "meeting", occurred_at: at(45, 12), summary: "Met at CAFBA lunch — strong lower north shore network, asked for our credit appetite one-pager." },
     // Angela (borrower contact) — a non-broker contact with a logged touch.
     { broker_id: angela.id, deal_id: millerSt.id, type: "call", occurred_at: at(3, 13), summary: "Confirmed the North Sydney purchase timeline; guarantor documents still outstanding." },
   ] as const;
   for (const interaction of interactions) await seedInteraction(interaction);
-  console.log(`Interactions: ${interactions.length} (last_contact_date derived by trigger; Mei-Ling Wong left cold at 45 days)`);
+  console.log(
+    `Interactions: ${interactions.length} (4 calls + 2 notes for the Calls/Notes tabs; last_contact_date derived by trigger; Mei-Ling Wong left cold at 45 days)`,
+  );
 
   // --- Key dates (loan-book reminders) ---------------------------------------
   await seedKeyDate({

@@ -16,6 +16,10 @@ export type TaskItem = {
 // Toggle one task's completion. Owning page supplies a non-throwing action.
 export type ToggleTask = (id: string, completed: boolean) => Promise<TaskActionResult>;
 
+// Optional inline edits (Today): rename a task, or move/clear its due date.
+export type RenameTask = (id: string, title: string) => Promise<TaskActionResult>;
+export type RescheduleTask = (id: string, dueDate: string | null) => Promise<TaskActionResult>;
+
 // Create a task from the inline composer. Owning page supplies the action.
 export type TaskCreateInput = { title: string; due_date: string | null };
 export type CreateTask = (input: TaskCreateInput) => Promise<TaskActionResult>;

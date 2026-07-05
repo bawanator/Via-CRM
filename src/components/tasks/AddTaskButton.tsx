@@ -27,7 +27,7 @@ export function AddTaskButton({
     <button
       type="button"
       onClick={() => setOpen(true)}
-      className={`card pressable flex min-h-11 w-full items-center gap-2 rounded-xl bg-card px-4 text-blue transition-colors hover:bg-fill-2 focus-visible:outline-2 focus-visible:outline-blue ${className}`}
+      className={`card pressable control-h flex w-full items-center gap-2 rounded-xl bg-card px-3 text-blue transition-colors hover:bg-fill-2 focus-visible:outline-2 focus-visible:outline-blue ${className}`}
     >
       <PlusIcon className="h-5 w-5" />
       <span className="text-body">{label}</span>
