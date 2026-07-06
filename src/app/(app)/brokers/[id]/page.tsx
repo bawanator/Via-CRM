@@ -35,6 +35,7 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
     title: t.title,
     due_date: t.due_date,
     completed: t.completed,
+    completed_at: t.completed_at,
     subtitle: t.deal?.name ?? null,
   }));
 

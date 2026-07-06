@@ -42,6 +42,7 @@ export const REPORT_METRICS: ReportMetric[] = [
   "deals_by_outcome",
   "stage_progression",
   "activity",
+  "tasks_completed",
 ];
 
 export const METRIC_LABELS: Record<ReportMetric, string> = {
@@ -50,6 +51,7 @@ export const METRIC_LABELS: Record<ReportMetric, string> = {
   deals_by_outcome: "Deal outcomes",
   stage_progression: "Stage progression",
   activity: "Activity",
+  tasks_completed: "Tasks completed",
 };
 
 export const METRIC_HELP: Record<ReportMetric, string> = {
@@ -58,6 +60,7 @@ export const METRIC_HELP: Record<ReportMetric, string> = {
   deals_by_outcome: "Deals that closed in the range — settled, or lost by reason.",
   stage_progression: "How many deals reached a chosen stage during the range.",
   activity: "Logged interactions in the range (emails, calls, meetings, notes).",
+  tasks_completed: "Tasks ticked off in the range, grouped by the linked person.",
 };
 
 // Which options each metric actually uses. The builder shows only these, and
@@ -67,7 +70,8 @@ export const metricUsesProduct = (m: ReportMetric) =>
   m === "deals_submitted" || m === "deals_by_stage" || m === "deals_by_outcome";
 export const metricUsesFunder = metricUsesProduct;
 export const metricUsesBroker = (m: ReportMetric) =>
-  m === "deals_submitted" || m === "deals_by_stage" || m === "deals_by_outcome" || m === "activity";
+  m === "deals_submitted" || m === "deals_by_stage" || m === "deals_by_outcome" || m === "activity" ||
+  m === "tasks_completed";
 export const metricUsesGroupBy = (m: ReportMetric) => m === "deals_submitted" || m === "activity";
 export const metricUsesInteractionType = (m: ReportMetric) => m === "activity";
 export const metricUsesTargetStage = (m: ReportMetric) => m === "stage_progression";

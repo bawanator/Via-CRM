@@ -93,6 +93,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
     title: t.title,
     due_date: t.due_date,
     completed: t.completed,
+    completed_at: t.completed_at,
   }));
 
   return (

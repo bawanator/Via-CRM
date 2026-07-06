@@ -28,7 +28,8 @@ export type ReportMetric =
   | "deals_by_stage"
   | "deals_by_outcome"
   | "stage_progression"
-  | "activity";
+  | "activity"
+  | "tasks_completed";
 
 export type ReportSpec = {
   metric: ReportMetric;
@@ -220,6 +221,29 @@ async function reportActivity(db: Db, spec: ReportSpec): Promise<ReportResult> {
   return { title: "Activity", rows: out, total };
 }
 
+// tasks_completed: tasks whose completed_at falls in the window — completed
+// tasks are stored forever precisely so this can be reported on. Grouped by
+// the linked contact (default) or flat.
+async function reportTasksCompleted(db: Db, spec: ReportSpec): Promise<ReportResult> {
+  const { from, to } = resolveRange(spec);
+  let query = db
+    .from("tasks")
+    .select("contact_id, contact:contacts(id, full_name)")
+    .eq("completed", true)
+    .gte("completed_at", from)
+    .lt("completed_at", endExclusive(to));
+  if (spec.broker_id) query = query.eq("contact_id", spec.broker_id);
+  const { data, error } = await query.returns<{ contact_id: string | null; contact: BrokerRef }[]>();
+  const rows = assertOk(data, error, "Counting completed tasks");
+
+  const title = `Tasks completed (${from} → ${to})`;
+  if (spec.group_by === "none") return { title, rows: [], total: rows.length };
+  const grouped = groupByBroker(
+    rows.map((r) => ({ broker_id: r.contact_id ?? "unlinked", broker: r.contact })),
+  ).map((row) => (row.label === "Unknown" ? { ...row, label: "Not linked to a person" } : row));
+  return { title, rows: grouped, total: rows.length };
+}
+
 export async function runReport(db: Db, spec: ReportSpec): Promise<ReportResult> {
   switch (spec.metric) {
     case "deals_submitted":
@@ -232,6 +256,8 @@ export async function runReport(db: Db, spec: ReportSpec): Promise<ReportResult>
       return reportStageProgression(db, spec);
     case "activity":
       return reportActivity(db, spec);
+    case "tasks_completed":
+      return reportTasksCompleted(db, spec);
     default: {
       const exhaustive: never = spec.metric;
       throw new Error(`Unknown report metric: ${String(exhaustive)}`);

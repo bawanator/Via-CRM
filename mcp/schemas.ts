@@ -215,10 +215,11 @@ export const getAuditHistoryShape = {
 // src/lib/crm/reports.ts. Answers questions like "how many scenarios progressed
 // to term sheet last quarter" (metric=stage_progression, target_stage=term_sheet).
 export const reportMetricSchema = z
-  .enum(["deals_submitted", "deals_by_stage", "deals_by_outcome", "stage_progression", "activity"])
+  .enum(["deals_submitted", "deals_by_stage", "deals_by_outcome", "stage_progression", "activity", "tasks_completed"])
   .describe(
     "deals_submitted (created in window) | deals_by_stage (current live) | deals_by_outcome (closed in window) | " +
-      "stage_progression (distinct deals that ENTERED target_stage in window; requires target_stage) | activity (interactions)",
+      "stage_progression (distinct deals that ENTERED target_stage in window; requires target_stage) | activity (interactions) | " +
+      "tasks_completed (tasks finished in window, grouped by linked person)",
   );
 
 export const reportSpecShape = {

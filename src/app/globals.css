@@ -229,3 +229,14 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* iOS Safari auto-zooms focused inputs with font-size < 16px. On touch
+   devices, force fields to 16px so tapping a field never zooms the page —
+   desktop keeps the denser 14px scale. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 1rem !important;
+  }
+}

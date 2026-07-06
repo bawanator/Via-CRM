@@ -43,19 +43,32 @@ export function TaskRow({
     onReschedule ? onReschedule(next === "" ? null : next) : { ok: true },
   );
 
+  // Optimistic completion: the circle fills (and the title strikes through)
+  // the moment it's tapped, holds for a beat so the state change is seen,
+  // and only then does the server write + refresh remove the row from
+  // open-task lists. Failures roll the visual back.
+  const [optimisticDone, setOptimisticDone] = useState<boolean | null>(null);
+  const shownCompleted = optimisticDone ?? task.completed;
+
   function toggle() {
     setError(null);
+    const next = !shownCompleted;
+    setOptimisticDone(next);
     startTransition(async () => {
-      const res = await onToggle(!task.completed);
-      if (!res.ok) setError(res.error ?? "Couldn’t update this task.");
+      if (next) await new Promise((resolve) => setTimeout(resolve, 550));
+      const res = await onToggle(next);
+      if (!res.ok) {
+        setOptimisticDone(null);
+        setError(res.error ?? "Couldn’t update this task.");
+      }
     });
   }
 
   const due = task.due_date;
   // Overdue or due today → urgent (red), unless the task is already done.
-  const urgent = due != null && !task.completed && daysBetween(todayISO(), due) <= 0;
+  const urgent = due != null && !shownCompleted && daysBetween(todayISO(), due) <= 0;
 
-  const titleClasses = `text-body truncate ${task.completed ? "text-label-3 line-through" : "text-label"}`;
+  const titleClasses = `text-body truncate ${shownCompleted ? "text-label-3 line-through" : "text-label"}`;
 
   return (
     <div className="flex items-center gap-3 px-3 py-1.5">
@@ -63,12 +76,12 @@ export function TaskRow({
         type="button"
         onClick={toggle}
         disabled={pending}
-        aria-pressed={task.completed}
-        aria-label={task.completed ? "Mark task not done" : "Mark task done"}
+        aria-pressed={shownCompleted}
+        aria-label={shownCompleted ? "Mark task not done" : "Mark task done"}
         className="pressable -ml-1.5 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-blue disabled:opacity-50"
       >
-        {task.completed ? (
-          <svg viewBox="0 0 24 24" className="h-5 w-5 text-green" aria-hidden>
+        {shownCompleted ? (
+          <svg viewBox="0 0 24 24" className="h-5 w-5 text-green [animation:pop-in_0.2s_ease]" aria-hidden>
             <circle cx="12" cy="12" r="9" fill="currentColor" />
             <path
               d="M8.4 12.3l2.3 2.3 4.5-4.8"

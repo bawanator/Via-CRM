@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCompany } from "@/lib/crm/companies";
+import { listTasks } from "@/lib/crm/tasks";
+import type { TaskItem } from "@/components/tasks/types";
 import { GroupedSection, LinkRow } from "@/components/ui/GroupedList";
 import { CompanyHeader } from "@/components/companies/CompanyHeader";
 import { CompanyTabs } from "@/components/companies/CompanyTabs";
@@ -15,6 +17,17 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
   const company = await getCompany(supabase, id);
   if (!company) notFound();
 
+  // Tasks against anyone at this company — the org page is another lens.
+  const taskRows = await listTasks(supabase, { contactIds: company.people.map((p) => p.id) });
+  const tasks: TaskItem[] = taskRows.map((t) => ({
+    id: t.id,
+    title: t.title,
+    due_date: t.due_date,
+    completed: t.completed,
+    completed_at: t.completed_at,
+    subtitle: t.contact?.full_name ?? null,
+  }));
+
   return (
     <>
       <CompanyHeader
@@ -26,6 +39,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
         people={company.people}
         interactions={company.interactions}
         deals={company.deals}
+        tasks={tasks}
       />
 
       <GroupedSection>

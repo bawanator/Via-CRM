@@ -2,29 +2,34 @@
 
 import { createTaskForContactAction, toggleTaskAction } from "@/app/(app)/brokers/actions";
 import { AddTaskButton } from "@/components/tasks/AddTaskButton";
+import { CompletedTasks } from "@/components/tasks/CompletedTasks";
 import { TaskList } from "@/components/tasks/TaskList";
 import type { CreateTask, TaskItem, ToggleTask } from "@/components/tasks/types";
 import { SectionHeader } from "@/components/brokers/SectionHeader";
 
-// This contact's tasks: the shared TaskList + an inline AddTask composer, both
-// bound to this contact via the server actions.
+// This contact's tasks: open tasks + composer, with completed history behind
+// a quiet disclosure (stored forever; reporting runs on completed_at).
 export function ContactTasksSection({ contactId, tasks }: { contactId: string; tasks: TaskItem[] }) {
   const onToggle: ToggleTask = (id, completed) => toggleTaskAction(id, completed, contactId);
   const onCreate: CreateTask = (input) => createTaskForContactAction(contactId, input);
 
+  const openTasks = tasks.filter((t) => !t.completed);
+  const doneTasks = tasks.filter((t) => t.completed);
+
   return (
     <section className="mb-6">
       <SectionHeader title="Tasks" />
-      {tasks.length > 0 ? (
+      {openTasks.length > 0 ? (
         <div className="mb-2">
-          <TaskList tasks={tasks} onToggle={onToggle} />
+          <TaskList tasks={openTasks} onToggle={onToggle} />
         </div>
       ) : (
         <div className="card mb-2 rounded-xl bg-card px-4 py-3">
-          <p className="text-footnote text-label-3">No tasks yet.</p>
+          <p className="text-footnote text-label-3">No open tasks.</p>
         </div>
       )}
       <AddTaskButton onCreate={onCreate} label="Add task" />
+      <CompletedTasks tasks={doneTasks} onToggle={onToggle} />
     </section>
   );
 }

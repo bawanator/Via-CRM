@@ -12,6 +12,7 @@ const TASK_SELECT = "*, contact:contacts(id, full_name), deal:deals(id, name)";
 export type TaskFilter = {
   openOnly?: boolean;
   contactId?: string;
+  contactIds?: string[]; // e.g. everyone at a company
   dealId?: string;
   dueBefore?: string; // ISO date; incomplete-or-not, due on/before this date
 };
@@ -25,6 +26,10 @@ export async function listTasks(db: Db, filter: TaskFilter = {}): Promise<TaskWi
     .order("created_at", { ascending: true });
   if (filter.openOnly) query = query.eq("completed", false);
   if (filter.contactId) query = query.eq("contact_id", filter.contactId);
+  if (filter.contactIds) {
+    if (filter.contactIds.length === 0) return [];
+    query = query.in("contact_id", filter.contactIds);
+  }
   if (filter.dealId) query = query.eq("deal_id", filter.dealId);
   if (filter.dueBefore) query = query.lte("due_date", filter.dueBefore);
   const { data, error } = await query.returns<TaskWithRefs[]>();

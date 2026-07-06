@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   pointerWithin,
   useDraggable,
   useDroppable,
@@ -177,7 +178,12 @@ export function DealBoard({ deals: initialDeals }: { deals: DealWithBroker[] }) 
     setDeals(initialDeals);
   }
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  // Mouse: drag after 6px of movement. Touch: long-press (250ms) to lift a
+  // card, so one-finger scrolling of the board is never hijacked on iPhone.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
 
   const activeDeal = activeId ? deals.find((d) => d.id === activeId) ?? null : null;
 

@@ -5,14 +5,17 @@ import { useState } from "react";
 import { Badge, BROKER_STAGE_TONE, DEAL_STATUS_TONE } from "@/components/ui/Badge";
 import { GroupedSection, LinkRow, Row } from "@/components/ui/GroupedList";
 import { InlineTextarea } from "@/components/common/InlineTextarea";
-import { updateCompanyAction } from "@/app/(app)/companies/actions";
+import { CompletedTasks } from "@/components/tasks/CompletedTasks";
+import { TaskList } from "@/components/tasks/TaskList";
+import type { TaskItem, ToggleTask } from "@/components/tasks/types";
+import { toggleCompanyTaskAction, updateCompanyAction } from "@/app/(app)/companies/actions";
 import type { CompanyDetail } from "@/lib/crm/companies";
 import { BROKER_STAGE_LABELS, DEAL_STATUS_LABELS } from "@/lib/domain";
 import { formatAmount, formatDateTime } from "@/lib/format";
 
 type CompanyInteraction = CompanyDetail["interactions"][number];
 
-const _TAB_KEYS = ["overview", "people", "emails", "calls", "notes", "deals"] as const;
+const _TAB_KEYS = ["overview", "people", "emails", "calls", "notes", "tasks", "deals"] as const;
 type TabKey = (typeof _TAB_KEYS)[number];
 
 // The Attio-style org view: everything logged against anyone at this company,
@@ -22,13 +25,18 @@ export function CompanyTabs({
   people,
   interactions,
   deals,
+  tasks,
 }: {
   company: Pick<CompanyDetail, "id" | "notes">;
   people: CompanyDetail["people"];
   interactions: CompanyDetail["interactions"];
   deals: CompanyDetail["deals"];
+  tasks: TaskItem[];
 }) {
   const [tab, setTab] = useState<TabKey>("overview");
+  const openTasks = tasks.filter((t) => !t.completed);
+  const doneTasks = tasks.filter((t) => t.completed);
+  const onToggleTask: ToggleTask = (taskId, completed) => toggleCompanyTaskAction(company.id, taskId, completed);
 
   // getCompany returns interactions newest-first already; filters keep order.
   const emails = interactions.filter((i) => i.type === "email");
@@ -41,6 +49,7 @@ export function CompanyTabs({
     { key: "emails", label: "Emails", count: emails.length },
     { key: "calls", label: "Calls", count: calls.length },
     { key: "notes", label: "Notes", count: noteEntries.length },
+    { key: "tasks", label: "Tasks", count: openTasks.length },
     { key: "deals", label: "Deals", count: deals.length },
   ];
 
@@ -110,6 +119,21 @@ export function CompanyTabs({
             )}
           </GroupedSection>
         </>
+      ) : null}
+      {tab === "tasks" ? (
+        <section className="mb-5">
+          <TaskList
+            tasks={openTasks}
+            onToggle={onToggleTask}
+            footer="Tasks live on people and deals — add them from a person's page."
+            empty={
+              <GroupedSection footer="Tasks live on people and deals — add them from a person's page.">
+                <EmptyRow text="No open tasks for anyone here." />
+              </GroupedSection>
+            }
+          />
+          <CompletedTasks tasks={doneTasks} onToggle={onToggleTask} />
+        </section>
       ) : null}
       {tab === "deals" ? <DealsTab deals={deals} /> : null}
     </>

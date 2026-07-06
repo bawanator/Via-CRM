@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { updateCompany } from "@/lib/crm/companies";
+import { completeTask } from "@/lib/crm/tasks";
 import { companyUpdateSchema } from "@/lib/schemas";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
@@ -30,5 +31,26 @@ export async function updateCompanyAction(id: string, fields: unknown): Promise<
       return { ok: false, error: "Another company already uses that name or domain" };
     }
     return { ok: false, error: msg };
+  }
+}
+
+// Toggle a task from the company Tasks tab (tasks belong to the company's
+// people; the org page is just another lens onto them).
+export async function toggleCompanyTaskAction(
+  companyId: string,
+  taskId: string,
+  completed: boolean,
+): Promise<ActionResult> {
+  const companyParsed = uuidSchema.safeParse(companyId);
+  const taskParsed = uuidSchema.safeParse(taskId);
+  if (!companyParsed.success || !taskParsed.success) return { ok: false, error: "Invalid id" };
+  try {
+    const supabase = await createClient();
+    await completeTask(supabase, taskParsed.data, completed);
+    revalidatePath(`/companies/${companyParsed.data}`);
+    revalidatePath("/");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not update the task" };
   }
 }

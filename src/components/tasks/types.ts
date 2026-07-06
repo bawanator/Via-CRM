@@ -9,6 +9,8 @@ export type TaskItem = {
   title: string;
   due_date: string | null;
   completed: boolean;
+  // When it was completed (kept forever — reporting runs on this).
+  completed_at?: string | null;
   // Optional line under the title, e.g. the linked contact or deal name.
   subtitle?: string | null;
 };
