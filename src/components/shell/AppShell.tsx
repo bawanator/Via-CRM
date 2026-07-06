@@ -38,7 +38,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh md:flex">
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r-[0.5px] border-separator px-3 py-5 md:flex">
-        <p className="text-headline mb-6 px-3 text-label">Vía OS</p>
+        <p className="mb-6 flex items-center gap-2 px-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand SVG */}
+          <img src="/icons/logo-mark.svg" alt="" className="h-5 w-auto" />
+          <span className="text-headline text-label">Vía OS</span>
+        </p>
         <nav className="flex flex-col gap-0.5" aria-label="Primary">
           {DESKTOP_NAV.map(({ href, label, icon: Icon }) => (
             <Link

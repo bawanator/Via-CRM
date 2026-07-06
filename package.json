@@ -9,7 +9,6 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "icons": "tsx scripts/generate-icons.ts",
     "seed": "tsx scripts/seed.ts",
     "import:attio": "tsx scripts/import-attio.ts",
     "allow": "tsx scripts/allow-user.ts",

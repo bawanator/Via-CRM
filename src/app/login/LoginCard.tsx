@@ -36,7 +36,9 @@ export function LoginCard() {
   }
 
   return (
-    <div className="w-full max-w-sm rounded-2xl bg-card p-8 text-center">
+    <div className="card w-full max-w-sm rounded-2xl bg-card p-8 text-center">
+      {/* eslint-disable-next-line @next/next/no-img-element -- static brand SVG, no optimisation needed */}
+      <img src="/icons/logo-mark.svg" alt="Vía" className="mx-auto mb-3 h-12 w-auto" />
       <h1 className="text-title-1 mb-1 text-label">Vía OS</h1>
       <p className="text-subheadline mb-8 text-label-2">Broker &amp; deal CRM for Vía Private</p>
 
