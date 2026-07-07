@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { FormEvent } from "react";
-import { loseDealAction, reopenDealAction, settleDealAction } from "@/app/(app)/deals/actions";
+import { deleteDealAction, loseDealAction, reopenDealAction, settleDealAction } from "@/app/(app)/deals/actions";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { DateField, FieldGroup, TextField } from "@/components/ui/Field";
@@ -58,6 +58,7 @@ export function DealStatusActions({ dealId, status }: { dealId: string; status: 
           </button>
         )}
         {error ? <p className="text-footnote px-4 pb-2.5 text-red">{error}</p> : null}
+        <DeleteDealRow dealId={dealId} />
       </>
     );
   }
@@ -79,8 +80,62 @@ export function DealStatusActions({ dealId, status }: { dealId: string; status: 
         Mark Closed / Lost…
       </button>
       {error ? <p className="text-footnote px-4 pb-2.5 text-red">{error}</p> : null}
+      <DeleteDealRow dealId={dealId} />
       <SettleSheet dealId={dealId} open={settleOpen} onOpenChange={setSettleOpen} />
       <LoseSheet dealId={dealId} open={loseOpen} onOpenChange={setLoseOpen} />
+    </>
+  );
+}
+
+// Destructive row in the Actions group: first tap arms the inline confirm;
+// only the explicit Delete button fires. Key dates, guarantors and tasks go
+// with the deal; interactions keep their history. On success the action
+// redirects to /deals.
+function DeleteDealRow({ dealId }: { dealId: string }) {
+  const [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function handleDelete() {
+    setError(null);
+    startTransition(async () => {
+      // On success the action redirects (never resolves with a result here).
+      const res = await deleteDealAction(dealId);
+      if (res && !res.ok) {
+        setError(res.error);
+        setConfirm(false);
+      }
+    });
+  }
+
+  return (
+    <>
+      {confirm ? (
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-1.5">
+          <span className="text-body text-label">Delete this deal?</span>
+          <div className="flex items-center gap-1">
+            <Button variant="plain" onClick={() => setConfirm(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={pending} className="font-semibold">
+              {pending ? "Deleting…" : "Delete"}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setConfirm(true);
+          }}
+          disabled={pending}
+          className="text-body pressable flex min-h-11 w-full items-center px-4 py-2.5 text-left text-red disabled:opacity-40"
+        >
+          Delete Deal…
+        </button>
+      )}
+      {error ? <p className="text-footnote px-4 pb-2.5 text-red">{error}</p> : null}
     </>
   );
 }

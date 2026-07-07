@@ -3,12 +3,21 @@
 import { useState } from "react";
 import { formatDate } from "@/lib/format";
 import { TaskList } from "@/components/tasks/TaskList";
-import type { TaskItem, ToggleTask } from "@/components/tasks/types";
+import type { DeleteTask, TaskItem, ToggleTask } from "@/components/tasks/types";
 
 // Completed tasks stay out of the way behind a quiet disclosure — stored
 // forever (reporting runs on completed_at), visible on demand, and a tap on
-// the filled circle reopens one.
-export function CompletedTasks({ tasks, onToggle }: { tasks: TaskItem[]; onToggle: ToggleTask }) {
+// the filled circle reopens one. `onDelete` (optional) passes straight through
+// to the rows.
+export function CompletedTasks({
+  tasks,
+  onToggle,
+  onDelete,
+}: {
+  tasks: TaskItem[];
+  onToggle: ToggleTask;
+  onDelete?: DeleteTask;
+}) {
   const [open, setOpen] = useState(false);
   if (tasks.length === 0) return null;
 
@@ -29,7 +38,7 @@ export function CompletedTasks({ tasks, onToggle }: { tasks: TaskItem[]; onToggl
       </button>
       {open ? (
         <div className="mt-1">
-          <TaskList tasks={withDates} onToggle={onToggle} />
+          <TaskList tasks={withDates} onToggle={onToggle} onDelete={onDelete} />
         </div>
       ) : null}
     </div>

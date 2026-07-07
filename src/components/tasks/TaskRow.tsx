@@ -15,21 +15,39 @@ import type { TaskActionResult, TaskItem } from "@/components/tasks/types";
 // due chip become click-to-edit: the title turns into an inline input
 // (Enter/blur saves, Esc cancels) and the chip opens a small date input with a
 // Clear option that saves on change. Pages that omit them are unchanged.
+//
+// When `onDelete` is provided, a quiet "×" sits at the row end; the first tap
+// turns it into an explicit "Delete?" confirm before anything fires.
 export function TaskRow({
   task,
   onToggle,
   hrefForLink,
   onRename,
   onReschedule,
+  onDelete,
 }: {
   task: TaskItem;
   onToggle: (completed: boolean) => Promise<TaskActionResult>;
   hrefForLink?: string;
   onRename?: (title: string) => Promise<TaskActionResult>;
   onReschedule?: (dueDate: string | null) => Promise<TaskActionResult>;
+  onDelete?: () => Promise<TaskActionResult>;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  function handleDelete() {
+    if (!onDelete) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await onDelete();
+      if (!res.ok) {
+        setDeleteConfirm(false);
+        setError(res.error ?? "Couldn’t delete this task.");
+      }
+    });
+  }
 
   // --- title editing (shares the Inline* state machine from common) ---------
   const titleEdit = useInlineEdit(task.title, onRename ?? (async () => ({ ok: true })));
@@ -230,6 +248,39 @@ export function TaskRow({
         >
           Set date
         </button>
+      ) : null}
+
+      {onDelete ? (
+        deleteConfirm ? (
+          <button
+            type="button"
+            onClick={handleDelete}
+            onBlur={() => setDeleteConfirm(false)}
+            disabled={pending}
+            aria-label={`Confirm delete task “${task.title}”`}
+            className="text-caption-1 pressable flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full px-2 font-semibold text-red focus-visible:outline-2 focus-visible:outline-blue disabled:opacity-40"
+          >
+            Delete?
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setDeleteConfirm(true)}
+            disabled={pending}
+            aria-label="Delete task"
+            className="pressable -mr-1.5 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-label-3 transition-colors hover:text-red focus-visible:outline-2 focus-visible:outline-blue disabled:opacity-40"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden>
+              <path
+                d="M7 7l10 10M17 7L7 17"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        )
       ) : null}
     </div>
   );

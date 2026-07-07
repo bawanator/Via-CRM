@@ -10,7 +10,8 @@ export type DealLossReason =
   | "failed_broker_dd"
   | "failed_customer_dd"
   | "lost_to_competitor"
-  | "ghosted";
+  | "ghosted"
+  | "unknown";
 export type DealProduct = "bridging" | "equity_release" | "purchase" | "residual_stock" | "other";
 // Funders are code-named. Real names live nowhere in the app. funder_1=HCP,
 // funder_2=First Federal, funder_3=Vest Capital — displayed only as 1/2/3.

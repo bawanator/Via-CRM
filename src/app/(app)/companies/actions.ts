@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { updateCompany } from "@/lib/crm/companies";
+import { deleteCompany, updateCompany } from "@/lib/crm/companies";
 import { completeTask } from "@/lib/crm/tasks";
 import { companyUpdateSchema } from "@/lib/schemas";
 
@@ -32,6 +33,24 @@ export async function updateCompanyAction(id: string, fields: unknown): Promise<
     }
     return { ok: false, error: msg };
   }
+}
+
+// Deleting a company unlinks its people first (they keep existing) and ends on
+// the companies list — the record page is gone.
+export async function deleteCompanyAction(id: string): Promise<ActionResult> {
+  const idParsed = uuidSchema.safeParse(id);
+  if (!idParsed.success) return { ok: false, error: "Invalid company id" };
+  try {
+    const supabase = await createClient();
+    await deleteCompany(supabase, idParsed.data);
+    revalidatePath("/companies");
+    revalidatePath("/brokers");
+    revalidatePath("/");
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not delete the company" };
+  }
+  // redirect() throws — it must run last, outside the try/catch.
+  redirect("/companies");
 }
 
 // Toggle a task from the company Tasks tab (tasks belong to the company's

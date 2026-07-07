@@ -11,6 +11,7 @@ export const dealLossReasonSchema = z.enum([
   "failed_customer_dd",
   "lost_to_competitor",
   "ghosted",
+  "unknown",
 ]);
 export const dealProductSchema = z.enum(["bridging", "equity_release", "purchase", "residual_stock", "other"]);
 export const dealFunderSchema = z.enum(["funder_1", "funder_2", "funder_3", "other"]);

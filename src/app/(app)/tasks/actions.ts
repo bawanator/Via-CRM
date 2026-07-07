@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { taskInputSchema, taskUpdateSchema } from "@/lib/schemas";
-import { createTask, completeTask as completeTaskCrm, updateTask } from "@/lib/crm/tasks";
+import { createTask, completeTask as completeTaskCrm, deleteTask, updateTask } from "@/lib/crm/tasks";
 
 type ActionOk = { ok: true; id: string };
 type ActionErr = { ok: false; error: string };
@@ -73,6 +73,25 @@ export async function updateTaskAction(id: string, raw: unknown): Promise<Action
     const task = await updateTask(supabase, taskId, input);
     revalidateTaskPaths(task);
     return { ok: true, id: task.id };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// A concrete app path the caller wants revalidated alongside "/" — e.g.
+// "/brokers/<uuid>" or "/deals/<uuid>". Restricted shape, never user-typed.
+const pathSchema = z.string().regex(/^\/[a-z0-9\-_/]*$/i, "Invalid path");
+
+// Delete a task outright (the quiet "×" on task rows). Revalidates Today plus
+// an optionally passed concrete path (the contact or deal record it lived on).
+export async function deleteTaskAction(id: string, path?: string): Promise<{ ok: true } | ActionErr> {
+  try {
+    const taskId = uuid.parse(id);
+    const supabase = await createClient();
+    await deleteTask(supabase, taskId);
+    revalidatePath("/");
+    if (path !== undefined) revalidatePath(pathSchema.parse(path));
+    return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }

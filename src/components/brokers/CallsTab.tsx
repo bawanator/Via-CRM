@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import type { InteractionRow } from "@/lib/database.types";
 import { todayISO } from "@/lib/dates";
-import { logCallAction } from "@/app/(app)/brokers/actions";
+import { deleteInteractionAction, logCallAction } from "@/app/(app)/brokers/actions";
 import { Sheet } from "@/components/ui/Sheet";
 import { DateField, FieldGroup, SelectField, TextAreaField } from "@/components/ui/Field";
 import { EmptyCardRow, InteractionListRow } from "@/components/brokers/InteractionListRow";
@@ -81,7 +81,16 @@ export function CallsTab({
           <EmptyCardRow text="No calls logged yet." />
         ) : (
           calls.map((interaction) => (
-            <InteractionListRow key={interaction.id} interaction={interaction} showIcon={false} />
+            <InteractionListRow
+              key={interaction.id}
+              interaction={interaction}
+              showIcon={false}
+              onDelete={async () => {
+                const res = await deleteInteractionAction(interaction.id, brokerId);
+                if (res.ok) router.refresh();
+                return res;
+              }}
+            />
           ))
         )}
       </div>

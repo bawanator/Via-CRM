@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/lib/schemas";
 import {
   createDeal,
+  deleteDeal,
   loseDeal,
   moveDealStage,
   reopenDeal,
@@ -214,6 +216,22 @@ export async function reopenDealAction(dealId: string, stage?: unknown): Promise
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
+}
+
+// Deleting a deal ends on the board — the record page is gone. Drive links are
+// removed by the crm layer; key dates/guarantors/tasks cascade, interactions
+// keep their history with deal_id nulled.
+export async function deleteDealAction(dealId: string): Promise<Result> {
+  try {
+    const id = uuid.parse(dealId);
+    const supabase = await createClient();
+    await deleteDeal(supabase, id);
+    revalidateDeal(id);
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+  // redirect() throws — it must run last, outside the try/catch.
+  redirect("/deals");
 }
 
 // ---------------------------------------------------------------------------

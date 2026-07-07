@@ -94,6 +94,16 @@ export async function updateCompany(db: Db, id: string, input: CompanyUpdate): P
   return assertOk(data, error, "Updating company");
 }
 
+// Deleting a company never deletes people — they are unlinked (company_id
+// cleared) first, then the org record itself is removed.
+export async function deleteCompany(db: Db, id: string): Promise<void> {
+  const { error: unlinkError } = await db.from("contacts").update({ company_id: null }).eq("company_id", id);
+  if (unlinkError) throw new Error(`Unlinking company people: ${unlinkError.message}`);
+
+  const { error } = await db.from("companies").delete().eq("id", id);
+  if (error) throw new Error(`Deleting company: ${error.message}`);
+}
+
 // ---------------------------------------------------------------------------
 // Auto-create / auto-link — companies are never hand-maintained.
 // ---------------------------------------------------------------------------

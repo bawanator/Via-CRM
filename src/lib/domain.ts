@@ -54,6 +54,7 @@ export const LOSS_REASONS: DealLossReason[] = [
   "failed_customer_dd",
   "lost_to_competitor",
   "ghosted",
+  "unknown",
 ];
 
 export const LOSS_REASON_LABELS: Record<DealLossReason, string> = {
@@ -63,6 +64,7 @@ export const LOSS_REASON_LABELS: Record<DealLossReason, string> = {
   failed_customer_dd: "Failed customer DD",
   lost_to_competitor: "Lost to competitor",
   ghosted: "Ghosted",
+  unknown: "Unknown",
 };
 
 export const PRODUCTS: DealProduct[] = ["bridging", "equity_release", "purchase", "residual_stock", "other"];

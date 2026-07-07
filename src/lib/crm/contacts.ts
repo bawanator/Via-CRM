@@ -144,6 +144,31 @@ export async function updateContact(db: Db, id: string, input: ContactUpdate): P
   return assertOk(data, error, "Updating contact");
 }
 
+// Deleting a contact. Deals block the delete (the FK would reject it anyway —
+// this pre-check turns that into a human message). Their drive links go first
+// (no FK cascade across the polymorphic parent); interactions and tasks
+// cascade via FK.
+export async function deleteContact(db: Db, id: string): Promise<void> {
+  const { count, error: countError } = await db
+    .from("deals")
+    .select("id", { count: "exact", head: true })
+    .eq("broker_id", id);
+  if (countError) throw new Error(`Checking contact deals: ${countError.message}`);
+  if (count != null && count > 0) {
+    throw new Error(`This contact has ${count} deal${count === 1 ? "" : "s"} — delete or reassign them first`);
+  }
+
+  const { error: linksError } = await db
+    .from("drive_links")
+    .delete()
+    .eq("parent_type", "contact")
+    .eq("parent_id", id);
+  if (linksError) throw new Error(`Deleting contact drive links: ${linksError.message}`);
+
+  const { error } = await db.from("contacts").delete().eq("id", id);
+  if (error) throw new Error(`Deleting contact: ${error.message}`);
+}
+
 // ---------------------------------------------------------------------------
 // Back-compat aliases — much existing code says "broker". A broker is a contact.
 // ---------------------------------------------------------------------------

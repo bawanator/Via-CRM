@@ -26,6 +26,7 @@ import { StageControl } from "@/components/brokers/StageControl";
 import { SectionHeader, SectionHeaderButton } from "@/components/brokers/SectionHeader";
 import { EmptyCardRow, InteractionListRow } from "@/components/brokers/InteractionListRow";
 import { ContactTasksSection } from "@/components/brokers/ContactTasksSection";
+import { DeleteContactRow } from "@/components/brokers/DeleteContactRow";
 import { DriveLinksSection } from "@/components/brokers/DriveLinksSection";
 import { LogInteractionSheet } from "@/components/brokers/LogInteractionSheet";
 import { EmailsTab } from "@/components/brokers/EmailsTab";
@@ -226,6 +227,8 @@ export function ContactProfile({
                   <span className="text-body text-label">Change History</span>
                 </LinkRow>
               </GroupedSection>
+
+              <DeleteContactRow contactId={contact.id} />
             </>
           ) : null}
 

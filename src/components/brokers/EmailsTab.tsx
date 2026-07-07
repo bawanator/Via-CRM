@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { InteractionRow } from "@/lib/database.types";
+import { deleteInteractionAction } from "@/app/(app)/brokers/actions";
 import { EmptyCardRow, InteractionListRow } from "@/components/brokers/InteractionListRow";
 import { SectionHeader, SectionHeaderButton } from "@/components/brokers/SectionHeader";
 
@@ -67,7 +68,16 @@ export function EmailsTab({
           <EmptyCardRow text={brokerEmail ? "No emails synced yet." : "Add an email address to sync Gmail."} />
         ) : (
           emails.map((interaction) => (
-            <InteractionListRow key={interaction.id} interaction={interaction} showIcon={false} />
+            <InteractionListRow
+              key={interaction.id}
+              interaction={interaction}
+              showIcon={false}
+              onDelete={async () => {
+                const res = await deleteInteractionAction(interaction.id, brokerId);
+                if (res.ok) router.refresh();
+                return res;
+              }}
+            />
           ))
         )}
       </div>

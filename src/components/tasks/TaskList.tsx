@@ -3,13 +3,15 @@
 import type { ReactNode } from "react";
 import { GroupedSection } from "@/components/ui/GroupedList";
 import { TaskRow } from "@/components/tasks/TaskRow";
-import type { RenameTask, RescheduleTask, TaskItem, ToggleTask } from "@/components/tasks/types";
+import type { DeleteTask, RenameTask, RescheduleTask, TaskItem, ToggleTask } from "@/components/tasks/types";
 
 // A grouped card of task rows. `onToggle(id, completed)` is a page-supplied
 // action; this component binds each row's id. When there are no tasks it
 // renders the `empty` slot (if given) so the caller controls the empty state.
 // `onRename` / `onReschedule` are optional — pages that pass them get inline
 // title/due-date editing on every row; pages that don't are unchanged.
+// `onDelete` is optional too — passing it puts a quiet "×" (with an inline
+// confirm) at the end of every row.
 export function TaskList({
   tasks,
   onToggle,
@@ -19,6 +21,7 @@ export function TaskList({
   empty,
   onRename,
   onReschedule,
+  onDelete,
 }: {
   tasks: TaskItem[];
   onToggle: ToggleTask;
@@ -28,6 +31,7 @@ export function TaskList({
   empty?: ReactNode;
   onRename?: RenameTask;
   onReschedule?: RescheduleTask;
+  onDelete?: DeleteTask;
 }) {
   if (tasks.length === 0) {
     return empty ? <>{empty}</> : null;
@@ -43,6 +47,7 @@ export function TaskList({
           hrefForLink={hrefFor?.(task)}
           onRename={onRename ? (title) => onRename(task.id, title) : undefined}
           onReschedule={onReschedule ? (dueDate) => onReschedule(task.id, dueDate) : undefined}
+          onDelete={onDelete ? () => onDelete(task.id) : undefined}
         />
       ))}
     </GroupedSection>

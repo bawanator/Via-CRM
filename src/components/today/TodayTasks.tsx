@@ -3,7 +3,7 @@
 import { TaskList } from "@/components/tasks/TaskList";
 import { AddTaskForm } from "@/components/tasks/AddTaskForm";
 import type { TaskItem } from "@/components/tasks/types";
-import { createTaskAction, toggleTaskAction, updateTaskAction } from "@/app/(app)/tasks/actions";
+import { createTaskAction, deleteTaskAction, toggleTaskAction, updateTaskAction } from "@/app/(app)/tasks/actions";
 
 // The day's to-do list, top of the Today screen: the open tasks (each with a
 // completion circle that toggles via toggleTaskAction) plus a persistent quick
@@ -23,6 +23,7 @@ export function TodayTasks({ tasks, hrefById }: { tasks: TaskItem[]; hrefById: R
           hrefFor={(t) => hrefById[t.id]}
           onRename={(id, title) => updateTaskAction(id, { title })}
           onReschedule={(id, dueDate) => updateTaskAction(id, { due_date: dueDate })}
+          onDelete={(id) => deleteTaskAction(id)}
         />
       ) : null}
     </div>

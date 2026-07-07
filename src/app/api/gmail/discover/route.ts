@@ -22,6 +22,12 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  if (process.env.ENABLE_GMAIL_DISCOVERY !== "true") {
+    return NextResponse.json(
+      { ok: false, error: "Contact discovery is switched off (set ENABLE_GMAIL_DISCOVERY=true to enable)." },
+      { status: 403 },
+    );
+  }
   try {
     const supabase = await createClient();
     const {

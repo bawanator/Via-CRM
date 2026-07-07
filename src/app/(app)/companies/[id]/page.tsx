@@ -6,6 +6,7 @@ import type { TaskItem } from "@/components/tasks/types";
 import { GroupedSection, LinkRow } from "@/components/ui/GroupedList";
 import { CompanyHeader } from "@/components/companies/CompanyHeader";
 import { CompanyTabs } from "@/components/companies/CompanyTabs";
+import { DeleteCompanyRow } from "@/components/companies/DeleteCompanyRow";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           <span className="text-body text-label">Change History</span>
         </LinkRow>
       </GroupedSection>
+
+      <DeleteCompanyRow companyId={company.id} />
     </>
   );
 }

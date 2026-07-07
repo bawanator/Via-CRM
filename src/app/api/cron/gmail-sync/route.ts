@@ -56,8 +56,12 @@ export async function GET(request: NextRequest) {
   }
 
   // Phase 1: reply-triggered contact discovery. Never allowed to abort the
-  // per-contact thread sync below.
-  let discovery: DiscoveryResult | { error: string };
+  // per-contact thread sync below. Gated behind ENABLE_GMAIL_DISCOVERY so
+  // auto-created contacts only start appearing when explicitly switched on.
+  let discovery: DiscoveryResult | { error: string } | { skipped: string };
+  if (process.env.ENABLE_GMAIL_DISCOVERY !== "true") {
+    discovery = { skipped: "discovery disabled (ENABLE_GMAIL_DISCOVERY != true)" };
+  } else
   try {
     discovery = await discoverContactsFromSent(db, accessToken, {
       newerThanDays: NIGHTLY_NEWER_THAN_DAYS,

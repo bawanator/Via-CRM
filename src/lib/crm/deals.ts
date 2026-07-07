@@ -112,6 +112,21 @@ export async function moveDealStage(db: Db, id: string, stage: DealPipelineStage
   return updateDeal(db, id, { pipeline_stage: stage });
 }
 
+// Deleting a deal. Its drive links go first (no FK cascade across the
+// polymorphic parent); key_dates/guarantors/tasks cascade via FK and
+// interactions keep their history with deal_id nulled.
+export async function deleteDeal(db: Db, id: string): Promise<void> {
+  const { error: linksError } = await db
+    .from("drive_links")
+    .delete()
+    .eq("parent_type", "deal")
+    .eq("parent_id", id);
+  if (linksError) throw new Error(`Deleting deal drive links: ${linksError.message}`);
+
+  const { error } = await db.from("deals").delete().eq("id", id);
+  if (error) throw new Error(`Deleting deal: ${error.message}`);
+}
+
 // Settling: status flips, dates are set; the DB trigger derives maturity_date
 // (settlement + term months — date arithmetic, not financial arithmetic).
 export async function settleDeal(

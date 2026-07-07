@@ -22,6 +22,9 @@ export type ToggleTask = (id: string, completed: boolean) => Promise<TaskActionR
 export type RenameTask = (id: string, title: string) => Promise<TaskActionResult>;
 export type RescheduleTask = (id: string, dueDate: string | null) => Promise<TaskActionResult>;
 
+// Optional destructive delete (quiet "×" with an inline confirm on the row).
+export type DeleteTask = (id: string) => Promise<TaskActionResult>;
+
 // Create a task from the inline composer. Owning page supplies the action.
 export type TaskCreateInput = { title: string; due_date: string | null };
 export type CreateTask = (input: TaskCreateInput) => Promise<TaskActionResult>;

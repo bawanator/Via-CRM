@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { createContact, updateContact } from "@/lib/crm/contacts";
+import { createContact, deleteContact, updateContact } from "@/lib/crm/contacts";
 import { ensureCompanyByName } from "@/lib/crm/companies";
 import { addContactType } from "@/lib/crm/contactTypes";
-import { logInteraction } from "@/lib/crm/interactions";
+import { deleteInteraction, logInteraction } from "@/lib/crm/interactions";
 import { addDriveLink, deleteDriveLink } from "@/lib/crm/driveLinks";
 import { completeTask, createTask } from "@/lib/crm/tasks";
 import {
@@ -110,6 +111,42 @@ export async function updateContactFieldAction(id: string, field: string, value:
     return { ok: true, id: idParsed.data };
   } catch (e) {
     return failed(e, "Could not save the change");
+  }
+}
+
+// Deleting a contact ends on the list — the record page is gone. deleteContact
+// pre-checks deals and throws the human message ("This contact has N deal(s)…")
+// which surfaces inline in the confirm UI.
+export async function deleteContactAction(id: string): Promise<ActionResult> {
+  const idParsed = uuidSchema.safeParse(id);
+  if (!idParsed.success) return { ok: false, error: "Invalid contact id" };
+  try {
+    const supabase = await createClient();
+    await deleteContact(supabase, idParsed.data);
+    revalidatePath("/brokers");
+    revalidatePath("/companies");
+    revalidatePath("/");
+  } catch (e) {
+    return failed(e, "Could not delete the contact");
+  }
+  // redirect() throws — it must run last, outside the try/catch.
+  redirect("/brokers");
+}
+
+// Delete a logged interaction (note / call / meeting / synced email — all live
+// on the interactions table).
+export async function deleteInteractionAction(id: string, contactId: string): Promise<ActionResult> {
+  const idParsed = uuidSchema.safeParse(id);
+  const contactParsed = uuidSchema.safeParse(contactId);
+  if (!idParsed.success || !contactParsed.success) return { ok: false, error: "Invalid id" };
+  try {
+    const supabase = await createClient();
+    await deleteInteraction(supabase, idParsed.data);
+    revalidatePath("/brokers");
+    revalidatePath(`/brokers/${contactParsed.data}`);
+    return { ok: true };
+  } catch (e) {
+    return failed(e, "Could not delete the entry");
   }
 }
 
