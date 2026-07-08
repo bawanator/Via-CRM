@@ -393,17 +393,24 @@ export async function discoverContactsFromSent(
     }
     // Zod-validated skeleton through the shared write boundary. Type "Other",
     // NOT Broker — auto-created contacts must never pollute the pipeline.
-    const parsed = contactInputSchema.parse({
-      full_name: addr.displayName?.trim() || nameFromEmail(email),
-      email,
-      type: "Other",
-      source: "Auto-created from sent email",
-    });
-    const { company_name: _companyName, ...fields } = parsed;
-    const companyId = await ensureCompanyByDomain(db, email); // null for free-mail
-    const contact = await createContact(db, { ...fields, company_id: companyId });
-    newContacts.push({ id: contact.id, email });
-    created += 1;
+    // Per-candidate try/catch: one exotic address (quoted local parts, stray
+    // characters) must skip that candidate, not abort the whole discovery run.
+    try {
+      const parsed = contactInputSchema.parse({
+        full_name: addr.displayName?.trim() || nameFromEmail(email),
+        email,
+        type: "Other",
+        source: "Auto-created from sent email",
+      });
+      const { company_name: _companyName, ...fields } = parsed;
+      const companyId = await ensureCompanyByDomain(db, email); // null for free-mail
+      const contact = await createContact(db, { ...fields, company_id: companyId });
+      newContacts.push({ id: contact.id, email });
+      created += 1;
+    } catch (err) {
+      skipped += 1;
+      console.error(`discovery: skipping ${email}: ${err instanceof Error ? err.message.split("\n")[0] : err}`);
+    }
   }
 
   // Populate each new contact's email tab immediately. Best-effort: a failed
