@@ -16,9 +16,7 @@ export function GroupedSection({
 }) {
   return (
     <section className={`mb-5 ${className}`}>
-      {header ? (
-        <h2 className="text-caption-1 mb-1.5 px-3 uppercase tracking-wide text-label-2">{header}</h2>
-      ) : null}
+      {header ? <h2 className="micro-label mb-1.5 px-3">{header}</h2> : null}
       <div className="card hairline-rows overflow-hidden rounded-xl bg-card">{children}</div>
       {footer ? <p className="text-footnote mt-1.5 px-3 text-label-2">{footer}</p> : null}
     </section>

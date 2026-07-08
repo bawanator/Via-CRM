@@ -20,7 +20,7 @@ export function DealTasksSection({ dealId, tasks }: { dealId: string; tasks: Tas
 
   return (
     <section className="mb-6">
-      <h2 className="text-caption-1 mb-1.5 px-3 uppercase tracking-wide text-label-2">Tasks</h2>
+      <h2 className="micro-label mb-1.5 px-3">Tasks</h2>
       <TaskList tasks={openTasks} onToggle={onToggle} onDelete={onDelete} empty={null} />
       <AddTaskButton onCreate={onCreate} label="Add task" className={openTasks.length > 0 ? "mt-2" : ""} />
       <CompletedTasks tasks={doneTasks} onToggle={onToggle} onDelete={onDelete} />

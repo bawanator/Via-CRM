@@ -146,7 +146,7 @@ function Kanban({ contacts, q }: { contacts: ContactWithStats[]; q: string }) {
             className="w-[80vw] max-w-72 shrink-0 snap-center md:w-auto md:min-w-0 md:max-w-none md:flex-1"
           >
             <header className="mb-2 flex items-center gap-2 px-1">
-              <h2 className="text-headline text-label">{BROKER_STAGE_LABELS[stage]}</h2>
+              <h2 className="micro-label">{BROKER_STAGE_LABELS[stage]}</h2>
               <Badge>{items.length}</Badge>
             </header>
             <div className="flex flex-col gap-2">

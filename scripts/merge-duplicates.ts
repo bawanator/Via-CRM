@@ -52,8 +52,13 @@ async function main() {
     if (DRY) continue;
 
     // 1. Move children to the keeper (interaction updates re-bump last_contact).
-    for (const [table, col] of [["interactions", "broker_id"], ["deals", "broker_id"], ["tasks", "contact_id"]] as const) {
-      const { error } = await db.from(table).update({ [col]: keep.id }).eq(col, frag.id);
+    const moves = [
+      ["interactions", () => db.from("interactions").update({ broker_id: keep.id }).eq("broker_id", frag.id)],
+      ["deals", () => db.from("deals").update({ broker_id: keep.id }).eq("broker_id", frag.id)],
+      ["tasks", () => db.from("tasks").update({ contact_id: keep.id }).eq("contact_id", frag.id)],
+    ] as const;
+    for (const [table, run] of moves) {
+      const { error } = await run();
       if (error) throw new Error(`Moving ${table} for ${keeper}: ${error.message}`);
     }
     // 2. Move drive links (polymorphic parent).

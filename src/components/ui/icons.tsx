@@ -113,6 +113,34 @@ export function ArrowUpRightIcon(props: IconProps) {
   );
 }
 
+export function DatabaseIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <ellipse cx="12" cy="5.5" rx="7.5" ry="3" />
+      <path d="M4.5 5.5v13c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-13" />
+      <path d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3" />
+    </svg>
+  );
+}
+
+export function CheckCircleIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m8.5 12.2 2.4 2.4 4.6-5" />
+    </svg>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="5" width="17" height="16" rx="2.5" />
+      <path d="M3.5 10h17M8 3v4M16 3v4" />
+    </svg>
+  );
+}
+
 export function ChartIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

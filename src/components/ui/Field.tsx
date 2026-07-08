@@ -8,7 +8,7 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTML
 export function FieldGroup({ header, footer, children }: { header?: string; footer?: ReactNode; children: ReactNode }) {
   return (
     <div className="mb-5">
-      {header ? <h3 className="text-caption-1 mb-1.5 px-3 uppercase tracking-wide text-label-2">{header}</h3> : null}
+      {header ? <h3 className="micro-label mb-1.5 px-3">{header}</h3> : null}
       <div className="card hairline-rows overflow-hidden rounded-xl bg-card">{children}</div>
       {footer ? <p className="text-footnote mt-1.5 px-3 text-label-2">{footer}</p> : null}
     </div>
@@ -58,7 +58,7 @@ export function TextAreaField({
 }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) {
   return (
     <label className="block px-3 py-2">
-      <span className="text-caption-1 mb-1 block uppercase tracking-wide text-label-2">{label}</span>
+      <span className="micro-label mb-1 block">{label}</span>
       <textarea
         {...props}
         rows={props.rows ?? 4}

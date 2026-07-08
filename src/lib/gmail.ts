@@ -79,6 +79,29 @@ async function gmailGet<T>(accessToken: string, path: string, context: string): 
 }
 
 /**
+ * Exact count of messages the user has SENT since an epoch second (read-only:
+ * message ids only, no metadata). Pages through ids rather than trusting
+ * Gmail's resultSizeEstimate, capped at 500 — far above a human day's sending.
+ */
+export async function countSentSince(accessToken: string, epochSeconds: number): Promise<number> {
+  const q = `in:sent after:${epochSeconds}`;
+  let count = 0;
+  let pageToken: string | undefined;
+  for (let page = 0; page < 5; page++) {
+    const tokenParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+    const data = await gmailGet<{ messages?: { id?: string }[]; nextPageToken?: string }>(
+      accessToken,
+      `/users/me/messages?q=${encodeURIComponent(q)}&maxResults=100${tokenParam}`,
+      "Gmail sent count",
+    );
+    count += data.messages?.length ?? 0;
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+  }
+  return count;
+}
+
+/**
  * Page 1 of threads matching the broker's email address, most recent first
  * (Gmail's default ordering). Returns thread ids only.
  */

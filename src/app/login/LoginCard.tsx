@@ -58,7 +58,7 @@ export function LoginCard() {
       <button
         onClick={signIn}
         disabled={busy}
-        className="text-body pressable inline-flex min-h-11 w-full items-center justify-center gap-2.5 rounded-xl bg-blue font-semibold text-white disabled:opacity-40"
+        className="text-body pressable inline-flex min-h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-accent-ink/10 bg-accent font-semibold text-accent-ink disabled:opacity-40"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
           <path

@@ -83,10 +83,13 @@ export function CommandSearch({ mobile = false }: { mobile?: boolean }) {
             <span className="text-caption-2 font-medium">Search</span>
           </button>
         ) : (
-          <button className="pressable text-subheadline flex min-h-11 w-full items-center gap-2 rounded-lg bg-fill-2 px-3 text-label-2">
-            <SearchIcon className="h-4 w-4" />
-            Search
-            <kbd className="text-caption-1 ml-auto rounded bg-fill px-1.5 py-0.5">⌘K</kbd>
+          // Header search pill (Supabase-style): bordered field with the ⌘K hint.
+          <button className="pressable text-subheadline flex h-8 w-56 items-center gap-2 rounded-md border border-separator bg-bg px-2.5 text-label-3 hover:text-label-2">
+            <SearchIcon className="h-3.5 w-3.5" />
+            Search…
+            <kbd className="text-caption-1 ml-auto rounded border-[0.5px] border-separator bg-fill-2 px-1.5 py-0.5 font-mono text-label-2">
+              ⌘K
+            </kbd>
           </button>
         )}
       </Dialog.Trigger>

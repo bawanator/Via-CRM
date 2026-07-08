@@ -142,7 +142,7 @@ function Column({
       className="w-[76vw] max-w-64 shrink-0 snap-center md:w-60 md:max-w-none md:snap-align-none"
     >
       <header className="mb-1.5 flex items-baseline justify-between px-1">
-        <h2 className="text-caption-1 uppercase tracking-wide text-label-2">{title}</h2>
+        <h2 className="micro-label">{title}</h2>
         <span className="text-caption-1 text-label-3">{count}</span>
       </header>
       <div

@@ -43,11 +43,11 @@ export function LoanRow({ loan }: { loan: LoanBookItem }) {
       {/* People: broker + borrower entity/contact with tap-to-call/email */}
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="min-w-0">
-          <p className="text-caption-1 uppercase tracking-wide text-label-3">Broker</p>
+          <p className="micro-label !text-label-3">Broker</p>
           <p className="text-footnote truncate text-label">{loan.brokerName ?? "—"}</p>
         </div>
         <div className="min-w-0">
-          <p className="text-caption-1 uppercase tracking-wide text-label-3">Borrower</p>
+          <p className="micro-label !text-label-3">Borrower</p>
           <p className="text-footnote truncate text-label">{loan.borrowerEntity ?? "—"}</p>
           {loan.borrowerContactName ? (
             <p className="text-caption-1 truncate text-label-2">{loan.borrowerContactName}</p>

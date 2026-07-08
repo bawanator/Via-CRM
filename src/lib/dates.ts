@@ -8,6 +8,24 @@ export function todayISO(now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: APP_TIMEZONE }).format(now);
 }
 
+// Epoch seconds at midnight of a Sydney calendar date. Sydney is UTC+10 or
+// UTC+11 (DST); probe both offsets and keep the one that round-trips to the
+// same calendar date at 00:00 — no timezone library needed.
+export function sydneyMidnightEpoch(dateISO: string): number {
+  for (const offset of ["+10:00", "+11:00"]) {
+    const candidate = new Date(`${dateISO}T00:00:00${offset}`);
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: APP_TIMEZONE,
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(candidate);
+    const hour = parts.find((p) => p.type === "hour")?.value;
+    if (todayISO(candidate) === dateISO && hour === "00") return Math.floor(candidate.getTime() / 1000);
+  }
+  // Unreachable for real Sydney dates; fall back to +10.
+  return Math.floor(new Date(`${dateISO}T00:00:00+10:00`).getTime() / 1000);
+}
+
 export function addDaysISO(dateISO: string, days: number): string {
   const d = new Date(dateISO + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + days);

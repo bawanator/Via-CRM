@@ -61,7 +61,7 @@ export default async function ReportsPage() {
       <PageHeader
         title="Reports"
         trailing={
-          <ReportBuilderSheet brokers={brokerOptions} trigger={<Button variant="tinted">New Report</Button>} />
+          <ReportBuilderSheet brokers={brokerOptions} trigger={<Button variant="filled">New Report</Button>} />
         }
       />
 
@@ -83,7 +83,7 @@ export default async function ReportsPage() {
         />
       ) : (
         <div>
-          <h2 className="text-footnote mb-2 px-1 uppercase tracking-wide text-label-2">All reports</h2>
+          <h2 className="micro-label mb-2 px-1">All reports</h2>
           {ran.map(({ report, ran: result }) => (
             <ReportCard
               key={report.id}

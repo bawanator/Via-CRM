@@ -149,7 +149,7 @@ export function AddDealSheet({ brokers }: { brokers: Broker[] }) {
         if (!next) resetAll();
       }}
       title={title}
-      trigger={<Button variant="tinted">Add Deal</Button>}
+      trigger={<Button variant="filled">Add Deal</Button>}
       action={action}
     >
       {suggestion ? (

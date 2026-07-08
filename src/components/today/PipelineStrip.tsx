@@ -6,7 +6,7 @@ import { PIPELINE_STAGES, PIPELINE_STAGE_LABELS } from "@/lib/domain";
 export function PipelineStrip({ counts }: { counts: Record<DealPipelineStage, number> }) {
   return (
     <section className="mb-5">
-      <h2 className="text-caption-1 mb-1.5 px-3 uppercase tracking-wide text-label-2">Live Pipeline</h2>
+      <h2 className="micro-label mb-1.5 px-3">Live Pipeline</h2>
       <Link
         href="/deals"
         className="card pressable grid min-h-11 grid-cols-5 items-start overflow-hidden rounded-xl bg-card px-2 py-2.5"

@@ -1,8 +1,19 @@
 import { createClient } from "@/lib/supabase/server";
 import { whatsDue } from "@/lib/crm/today";
+import { emailsSentToday, overviewStats } from "@/lib/crm/overview";
 import { APP_TIMEZONE } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { StatCard } from "@/components/ui/StatCard";
+import {
+  BookIcon,
+  CalendarIcon,
+  CheckCircleIcon,
+  DatabaseIcon,
+  DealsIcon,
+  PeopleIcon,
+} from "@/components/ui/icons";
+import { OverviewPanel } from "@/components/today/OverviewPanel";
 import { TodayTasks } from "@/components/today/TodayTasks";
 import { PipelineStrip } from "@/components/today/PipelineStrip";
 import { OverdueActions } from "@/components/today/OverdueActions";
@@ -14,7 +25,11 @@ export const dynamic = "force-dynamic";
 
 export default async function TodayPage() {
   const supabase = await createClient();
-  const data = await whatsDue(supabase);
+  const [data, stats, sentToday] = await Promise.all([
+    whatsDue(supabase),
+    overviewStats(supabase),
+    emailsSentToday(supabase),
+  ]);
 
   const longDate = new Intl.DateTimeFormat("en-AU", {
     weekday: "long",
@@ -22,6 +37,13 @@ export default async function TodayPage() {
     month: "long",
     timeZone: APP_TIMEZONE,
   }).format(new Date());
+
+  const liveDeals = Object.values(data.liveDealsByStage).reduce((a, b) => a + b, 0);
+  const maturityShort = stats.nextMaturity
+    ? new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", timeZone: APP_TIMEZONE }).format(
+        new Date(stats.nextMaturity.maturity_date + "T00:00:00"),
+      )
+    : "—";
 
   // Shape open tasks for the presentational TaskList, and build a parallel
   // id → href map so a task linked to a contact/deal can deep-link.
@@ -46,9 +68,57 @@ export default async function TodayPage() {
 
   return (
     <div>
-      <PageHeader title="Today">
+      <PageHeader title="Vía OS">
         <p className="text-footnote text-label-2">{longDate}</p>
       </PageHeader>
+
+      {/* Overview stat cards. STATUS is truthful: this page only renders after
+          the database answered every query above. */}
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Status" value="Healthy" sub="Database · Sydney" icon={DatabaseIcon} dot="green" />
+        <StatCard
+          label="Tasks completed"
+          value={stats.tasksCompletedToday}
+          sub={sentToday === null ? "today" : `+ ${sentToday} ${sentToday === 1 ? "email" : "emails"} sent today`}
+          icon={CheckCircleIcon}
+        />
+        <StatCard
+          label="Live pipeline"
+          value={liveDeals}
+          sub={`${liveDeals === 1 ? "deal" : "deals"} in flight`}
+          icon={DealsIcon}
+          href="/deals"
+        />
+        <StatCard
+          label="Loan book"
+          value={stats.settledLoans}
+          sub={stats.settledLoans === 1 ? "settled loan" : "settled loans"}
+          icon={BookIcon}
+          href="/loan-book"
+        />
+        <StatCard
+          label="Next maturity"
+          value={maturityShort}
+          sub={stats.nextMaturity?.name ?? "none upcoming"}
+          icon={CalendarIcon}
+          href={stats.nextMaturity ? `/deals/${stats.nextMaturity.deal_id}` : "/loan-book"}
+        />
+        <StatCard
+          label="Contacts"
+          value={stats.totalContacts}
+          sub={`${data.coldBrokers.length} gone cold`}
+          icon={PeopleIcon}
+          href="/brokers"
+        />
+      </div>
+
+      <OverviewPanel
+        settledLoans={stats.settledLoans}
+        liveDeals={liveDeals}
+        openTasks={data.openTasks.length}
+        coldContacts={data.coldBrokers.length}
+        nextMaturity={stats.nextMaturity}
+      />
 
       <TodayTasks tasks={taskItems} hrefById={taskHrefs} />
 

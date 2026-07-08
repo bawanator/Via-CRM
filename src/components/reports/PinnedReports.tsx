@@ -17,7 +17,7 @@ export async function PinnedReports() {
 
   return (
     <section className="mb-6">
-      <h2 className="text-footnote mb-1.5 px-1 uppercase tracking-wide text-label-2">Pinned</h2>
+      <h2 className="micro-label mb-1.5 px-1">Pinned</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map(({ report, ran }) => (
           <PinnedTile key={report.id} report={report} ran={ran} />
@@ -33,7 +33,7 @@ function PinnedTile({ report, ran }: { report: SavedReportRow; ran: RanReport })
 
   return (
     <div className="card flex flex-col gap-1 rounded-xl bg-card px-4 py-3.5">
-      <p className="text-footnote truncate uppercase tracking-wide text-label-2">{report.name}</p>
+      <p className="micro-label truncate">{report.name}</p>
       {!ran.ok ? (
         <p className="text-subheadline mt-1 text-label-3">{ran.error}</p>
       ) : (

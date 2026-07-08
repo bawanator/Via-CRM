@@ -14,7 +14,7 @@ export function TodayTasks({ tasks, hrefById }: { tasks: TaskItem[]; hrefById: R
   const hasTasks = tasks.length > 0;
   return (
     <div>
-      <h2 className="text-caption-1 mb-1.5 px-3 uppercase tracking-wide text-label-2">Tasks</h2>
+      <h2 className="micro-label mb-1.5 px-3">Tasks</h2>
       <AddTaskForm onCreate={createTaskAction} className={hasTasks ? "mb-2" : "mb-5"} />
       {hasTasks ? (
         <TaskList

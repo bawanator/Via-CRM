@@ -5,7 +5,7 @@ export const metadata = { title: "Sign in" };
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-dvh items-center justify-center p-6">
+    <main className="dotted-canvas flex min-h-dvh items-center justify-center p-6">
       <Suspense>
         <LoginCard />
       </Suspense>

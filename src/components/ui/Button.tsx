@@ -4,8 +4,10 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type Variant = "filled" | "tinted" | "plain" | "destructive";
 
+// Filled = the primary action in Vía yellow (the role Supabase gives its
+// green Connect button); tinted/plain stay blue for secondary/inline actions.
 const styles: Record<Variant, string> = {
-  filled: "bg-blue text-white font-semibold rounded-lg px-3.5",
+  filled: "bg-accent text-accent-ink font-semibold rounded-lg px-3.5 border border-accent-ink/10 hover:brightness-[0.97]",
   tinted: "bg-blue/15 text-blue font-semibold rounded-lg px-3.5",
   plain: "text-blue px-2 min-w-9 rounded-lg",
   destructive: "text-red px-2 min-w-9 rounded-lg",

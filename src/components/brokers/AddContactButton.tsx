@@ -34,7 +34,7 @@ export function AddContactButton({ types }: { types: ContactTypeRow[] }) {
   return (
     <>
       <Button
-        variant="tinted"
+        variant="filled"
         onClick={() => {
           setError(null);
           setOpen(true);

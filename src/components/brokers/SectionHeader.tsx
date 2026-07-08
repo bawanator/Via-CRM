@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 export function SectionHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="mb-1 flex min-h-11 items-center justify-between gap-3 px-4">
-      <h2 className="text-footnote uppercase tracking-wide text-label-2">{title}</h2>
+      <h2 className="micro-label">{title}</h2>
       {children ? <div className="flex items-center gap-4">{children}</div> : null}
     </div>
   );
