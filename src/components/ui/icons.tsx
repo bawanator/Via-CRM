@@ -113,6 +113,25 @@ export function ArrowUpRightIcon(props: IconProps) {
   );
 }
 
+export function MenuIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+export function BranchIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="7" cy="6" r="2.5" />
+      <circle cx="7" cy="18" r="2.5" />
+      <circle cx="17" cy="8" r="2.5" />
+      <path d="M7 8.5v7M17 10.5c0 3-3.5 3.5-7 3.5" />
+    </svg>
+  );
+}
+
 export function DatabaseIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

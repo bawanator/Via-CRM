@@ -75,12 +75,12 @@ export function CommandSearch({ mobile = false }: { mobile?: boolean }) {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
         {mobile ? (
+          // One icon slot in the floating pill toolbar (Supabase mobile style).
           <button
             aria-label="Search"
-            className="flex min-h-12 w-full flex-1 flex-col items-center justify-center gap-0.5 self-stretch"
+            className="pressable flex h-11 w-11 items-center justify-center rounded-full text-label-2"
           >
-            <SearchIcon className="h-6 w-6" />
-            <span className="text-caption-2 font-medium">Search</span>
+            <SearchIcon className="h-5.5 w-5.5" />
           </button>
         ) : (
           // Header search pill (Supabase-style): bordered field with the ⌘K hint.
