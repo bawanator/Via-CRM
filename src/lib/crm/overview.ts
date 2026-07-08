@@ -9,14 +9,17 @@ export type OverviewStats = {
   settledLoans: number;
   totalContacts: number;
   tasksCompletedToday: number;
+  dealsThisMonth: number;
   nextMaturity: { deal_id: string; name: string; maturity_date: string } | null;
 };
 
 export async function overviewStats(db: Db): Promise<OverviewStats> {
   const today = todayISO();
   const startOfDay = new Date(sydneyMidnightEpoch(today) * 1000).toISOString();
+  // First moment of the current Sydney calendar month, for "deals in".
+  const startOfMonth = new Date(sydneyMidnightEpoch(`${today.slice(0, 7)}-01`) * 1000).toISOString();
 
-  const [settled, contacts, tasksToday, maturity] = await Promise.all([
+  const [settled, contacts, tasksToday, dealsMonth, maturity] = await Promise.all([
     db.from("deals").select("id", { count: "exact", head: true }).eq("status", "settled"),
     db.from("contacts").select("id", { count: "exact", head: true }),
     db
@@ -24,6 +27,7 @@ export async function overviewStats(db: Db): Promise<OverviewStats> {
       .select("id", { count: "exact", head: true })
       .eq("completed", true)
       .gte("completed_at", startOfDay),
+    db.from("deals").select("id", { count: "exact", head: true }).gte("created_at", startOfMonth),
     db
       .from("deals")
       .select("id, name, maturity_date")
@@ -39,6 +43,7 @@ export async function overviewStats(db: Db): Promise<OverviewStats> {
     settledLoans: settled.count ?? 0,
     totalContacts: contacts.count ?? 0,
     tasksCompletedToday: tasksToday.count ?? 0,
+    dealsThisMonth: dealsMonth.count ?? 0,
     nextMaturity:
       next && next.maturity_date ? { deal_id: next.id, name: next.name, maturity_date: next.maturity_date } : null,
   };

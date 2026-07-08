@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { MutableRefObject, ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -32,6 +33,12 @@ import type { DealLossReason, DealPipelineStage } from "@/lib/database.types";
 
 const LOST_COLUMN = "lost";
 type ColumnId = DealPipelineStage | typeof LOST_COLUMN;
+
+// Every column in board order — the five live stages plus Closed / Lost.
+const ALL_COLUMNS: { id: ColumnId; label: string }[] = [
+  ...PIPELINE_STAGES.map((s) => ({ id: s as ColumnId, label: PIPELINE_STAGE_LABELS[s] })),
+  { id: LOST_COLUMN, label: "Closed / Lost" },
+];
 
 // A stable fingerprint of the server's board state; when it changes (after a
 // revalidate) we snap local optimistic state back to the server truth.
@@ -137,10 +144,7 @@ function Column({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <section
-      aria-label={title}
-      className="w-[76vw] max-w-64 shrink-0 snap-center md:w-60 md:max-w-none md:snap-align-none"
-    >
+    <section aria-label={title} className="w-60 shrink-0">
       <header className="mb-1.5 flex items-baseline justify-between px-1">
         <h2 className="micro-label">{title}</h2>
         <span className="text-caption-1 text-label-3">{count}</span>
@@ -165,6 +169,8 @@ export function DealBoard({ deals: initialDeals }: { deals: DealWithBroker[] }) 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [losing, setLosing] = useState<DealWithBroker | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Phone view: which stage tile is selected (Supabase-style tiles + list).
+  const [selectedColumn, setSelectedColumn] = useState<ColumnId>(PIPELINE_STAGES[0]);
   const didDragRef = useRef(false);
 
   // Reconcile to the server's truth whenever it actually changes — the
@@ -258,9 +264,80 @@ export function DealBoard({ deals: initialDeals }: { deals: DealWithBroker[] }) 
         <p className="text-footnote mb-2 rounded-lg bg-red/10 px-3 py-2 text-red">{error}</p>
       ) : null}
 
-      {/* Columns are fixed-width (~w-60) so the board packs more cards per
-          screen; the rail scrolls horizontally at every breakpoint. */}
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:snap-none md:px-0">
+      {/* Phone: stage tiles + a list of the selected stage's deals (no
+          sideways column swiping). Stage changes happen inside the deal. */}
+      <div className="md:hidden">
+        <div
+          role="tablist"
+          aria-label="Pipeline stage"
+          className="card mb-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-separator"
+        >
+          {ALL_COLUMNS.map(({ id, label }) => {
+            const count = deals.filter((d) => columnOf(d) === id).length;
+            const selected = selectedColumn === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setSelectedColumn(id)}
+                className={`flex min-h-16 flex-col items-center justify-center gap-0.5 px-1 py-2 text-center transition-colors ${
+                  selected ? "bg-fill-2" : "bg-card"
+                }`}
+              >
+                <span className={`text-title-3 ${count === 0 ? "text-label-3" : "text-label"}`}>{count}</span>
+                <span
+                  className={`text-caption-1 leading-tight ${
+                    selected ? "font-semibold text-label" : "text-label-2"
+                  }`}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {(() => {
+          const items = deals.filter((d) => columnOf(d) === selectedColumn);
+          if (items.length === 0) {
+            return (
+              <p className="card dotted-canvas text-subheadline rounded-xl bg-card px-4 py-8 text-center text-label-3">
+                No deals in this stage.
+              </p>
+            );
+          }
+          return (
+            <div className="card hairline-rows overflow-hidden rounded-xl bg-card">
+              {items.map((deal) => (
+                <Link
+                  key={deal.id}
+                  href={`/deals/${deal.id}`}
+                  className="pressable flex items-center gap-3 px-3 py-2.5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <CardBody deal={deal} />
+                  </div>
+                  <svg className="h-3.5 w-3.5 shrink-0 text-label-3" viewBox="0 0 14 14" fill="none" aria-hidden>
+                    <path
+                      d="M5 2.5 9.5 7 5 11.5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </Link>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Desktop: the drag-and-drop board. Columns are fixed-width (~w-60) so
+          the board packs more cards per screen; the rail scrolls horizontally. */}
+      <div className="hidden gap-3 overflow-x-auto pb-4 md:flex">
         {PIPELINE_STAGES.map((stage) => {
           const column = deals.filter((d) => d.status === "live" && d.pipeline_stage === stage);
           return (

@@ -6,8 +6,8 @@ import { useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   BookIcon,
-  BranchIcon,
   ChartIcon,
+  CheckCircleIcon,
   ClockIcon,
   DealsIcon,
   MenuIcon,
@@ -29,6 +29,7 @@ const TABS = [
 // The rail groups daily destinations above the divider, admin below it.
 const RAIL_MAIN = [
   { href: "/", label: "Today", icon: SunIcon },
+  { href: "/tasks", label: "Tasks", icon: CheckCircleIcon },
   { href: "/brokers", label: "Brokers", icon: PeopleIcon },
   { href: "/companies", label: "Companies", icon: CompanyIcon },
   { href: "/deals", label: "Deals", icon: DealsIcon },
@@ -145,11 +146,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <img src="/icons/logo-mark.svg" alt="" className="h-4 w-auto" />
         </Link>
         <div className="min-w-0 flex-1">
-          <p className="text-headline truncate leading-tight text-label">{sectionLabel(pathname)}</p>
-          <p className="micro-label flex items-center gap-1">
-            <BranchIcon className="h-3 w-3" />
-            Production
-          </p>
+          <p className="text-headline truncate text-label">{sectionLabel(pathname)}</p>
         </div>
         <span
           aria-hidden
@@ -171,9 +168,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           /
         </span>
         <span className="text-body text-label-2">{sectionLabel(pathname)}</span>
-        <span className="micro-label ml-1 rounded-full border border-accent/50 bg-accent/15 px-2 py-0.5 !text-accent-ink">
-          Production
-        </span>
 
         <div className="ml-auto flex items-center gap-2">
           <CommandSearch />

@@ -5,14 +5,7 @@ import { APP_TIMEZONE } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatCard } from "@/components/ui/StatCard";
-import {
-  BookIcon,
-  CalendarIcon,
-  CheckCircleIcon,
-  DatabaseIcon,
-  DealsIcon,
-  PeopleIcon,
-} from "@/components/ui/icons";
+import { BookIcon, CalendarIcon, CheckCircleIcon, DealsIcon, PeopleIcon } from "@/components/ui/icons";
 import { OverviewPanel } from "@/components/today/OverviewPanel";
 import { TodayTasks } from "@/components/today/TodayTasks";
 import { PipelineStrip } from "@/components/today/PipelineStrip";
@@ -39,6 +32,7 @@ export default async function TodayPage() {
   }).format(new Date());
 
   const liveDeals = Object.values(data.liveDealsByStage).reduce((a, b) => a + b, 0);
+  const monthName = new Intl.DateTimeFormat("en-AU", { month: "long", timeZone: APP_TIMEZONE }).format(new Date());
   const maturityShort = stats.nextMaturity
     ? new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", timeZone: APP_TIMEZONE }).format(
         new Date(stats.nextMaturity.maturity_date + "T00:00:00"),
@@ -72,20 +66,21 @@ export default async function TodayPage() {
         <p className="text-footnote text-label-2">{longDate}</p>
       </PageHeader>
 
-      {/* Overview stat cards. STATUS is truthful: this page only renders after
-          the database answered every query above. */}
+      {/* The live pipeline leads the page; stat cards follow. */}
+      <PipelineStrip counts={data.liveDealsByStage} />
+
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="Status" value="Healthy" sub="Database · Sydney" icon={DatabaseIcon} dot="green" />
         <StatCard
           label="Tasks completed"
           value={stats.tasksCompletedToday}
           sub={sentToday === null ? "today" : `+ ${sentToday} ${sentToday === 1 ? "email" : "emails"} sent today`}
           icon={CheckCircleIcon}
+          href="/tasks"
         />
         <StatCard
-          label="Live pipeline"
-          value={liveDeals}
-          sub={`${liveDeals === 1 ? "deal" : "deals"} in flight`}
+          label="Deals this month"
+          value={stats.dealsThisMonth}
+          sub={`came in ${monthName}`}
           icon={DealsIcon}
           href="/deals"
         />
@@ -120,9 +115,7 @@ export default async function TodayPage() {
         nextMaturity={stats.nextMaturity}
       />
 
-      <TodayTasks tasks={taskItems} hrefById={taskHrefs} />
-
-      <PipelineStrip counts={data.liveDealsByStage} />
+      <TodayTasks tasks={taskItems} hrefById={taskHrefs} totalOpen={data.totalOpenTasks} />
 
       <OverdueActions brokers={data.overdueActions} today={data.today} />
       <KeyDatesSection keyDates={data.upcomingKeyDates} today={data.today} />

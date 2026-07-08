@@ -18,6 +18,8 @@ export type TodayData = {
   coldBrokers: BrokerWithStats[];
   liveDealsByStage: Record<DealPipelineStage, number>;
   openTasks: TaskWithRefs[];
+  // Open tasks can exceed the Today cap; the UI shows this beside "View all".
+  totalOpenTasks: number;
 };
 
 // The morning screen and the MCP whats_due tool share this exact function.
@@ -47,5 +49,6 @@ export async function whatsDue(
     coldBrokers: cold.filter((b) => !overdueIds.has(b.id)),
     liveDealsByStage,
     openTasks: openTasks.slice(0, OPEN_TASKS_CAP),
+    totalOpenTasks: openTasks.length,
   };
 }

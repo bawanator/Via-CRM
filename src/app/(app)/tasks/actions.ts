@@ -27,6 +27,7 @@ function errorMessage(err: unknown): string {
 // Tasks surface on Today and (when linked) on the related contact/deal.
 function revalidateTaskPaths(refs: { contact_id?: string | null; deal_id?: string | null }) {
   revalidatePath("/");
+  revalidatePath("/tasks");
   revalidatePath("/brokers");
   revalidatePath("/deals");
   if (refs.contact_id) revalidatePath(`/brokers/${refs.contact_id}`);

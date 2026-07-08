@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { daysBetween, todayISO } from "@/lib/dates";
 import { relativeDays } from "@/lib/format";
 import { useInlineEdit } from "@/components/common/useInlineEdit";
@@ -56,10 +56,30 @@ export function TaskRow({
   const titleCancelRef = useRef(false);
 
   // --- due-date editing ------------------------------------------------------
+  // The chip has an invisible native <input type="date"> stretched over it, so
+  // ONE tap opens the OS date picker (the old two-step swap-in field never
+  // opened iOS's picker — it just sat there looking dead). iOS fires `change`
+  // on every wheel tick, so saves are debounced and flushed on blur; the
+  // lastSent ref stops the blur flush double-writing what change already saved.
   const committedDue = task.due_date ?? "";
   const dueEdit = useInlineEdit(committedDue, async (next) =>
     onReschedule ? onReschedule(next === "" ? null : next) : { ok: true },
   );
+  const dueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dueLastSentRef = useRef(committedDue);
+  useEffect(() => {
+    dueLastSentRef.current = committedDue;
+  }, [committedDue]);
+  function sendDue(next: string) {
+    if (dueTimerRef.current) clearTimeout(dueTimerRef.current);
+    if (next === dueLastSentRef.current) return;
+    dueLastSentRef.current = next;
+    dueEdit.save(next);
+  }
+  function scheduleDue(next: string) {
+    if (dueTimerRef.current) clearTimeout(dueTimerRef.current);
+    dueTimerRef.current = setTimeout(() => sendDue(next), 600);
+  }
 
   // Optimistic completion: the circle fills (and the title strikes through)
   // the moment it's tapped, holds for a beat so the state change is seen,
@@ -182,72 +202,55 @@ export function TaskRow({
         {error ? <p className="text-footnote text-red">{error}</p> : null}
       </div>
 
-      {dueEdit.editing ? (
-        <span className="flex shrink-0 items-center gap-1">
-          <input
-            autoFocus
-            type="date"
-            defaultValue={committedDue}
-            disabled={dueEdit.pending}
-            aria-label="Due date"
-            onChange={(e) => dueEdit.save(e.target.value)}
-            onKeyDown={(e) => {
-              // The date saves on change, so leaving the field (Esc or blur)
-              // simply closes the editor without a write.
-              if (e.key === "Escape") {
-                e.preventDefault();
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-            onBlur={dueEdit.stop}
-            className="text-footnote rounded-md bg-fill-2 px-1.5 py-0.5 text-label focus:outline-none focus-visible:outline-2 focus-visible:outline-blue disabled:opacity-60"
-          />
+      {onReschedule ? (
+        <span className="flex shrink-0 items-center">
+          <span
+            className={`text-caption-1 relative inline-flex min-h-7 items-center whitespace-nowrap rounded-full px-2 py-0.5 font-medium transition-colors hover:bg-fill-2 ${
+              urgent ? "bg-red/10 text-red" : "text-label-3"
+            } ${dueEdit.pending ? "opacity-50" : ""}`}
+          >
+            {due ? relativeDays(due) : "Set date"}
+            <input
+              type="date"
+              // Remount on server confirm so the field tracks outside changes.
+              key={committedDue}
+              defaultValue={committedDue}
+              disabled={dueEdit.pending}
+              aria-label={due ? `Change due date (${relativeDays(due)})` : "Set due date"}
+              onClick={(e) => {
+                try {
+                  e.currentTarget.showPicker?.();
+                } catch {
+                  /* browsers without showPicker still focus the field */
+                }
+              }}
+              onChange={(e) => scheduleDue(e.target.value)}
+              onBlur={(e) => sendDue(e.target.value)}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:outline-2 focus-visible:outline-blue"
+            />
+          </span>
           {due ? (
             <button
               type="button"
               aria-label="Clear due date"
-              // pointerdown (not click) so the date input doesn't blur-close
-              // this editor before the clear registers.
-              onPointerDown={(e) => {
-                e.preventDefault();
-                dueEdit.save("");
-              }}
-              className="text-footnote pressable rounded-md px-1.5 py-0.5 text-red"
+              onClick={() => sendDue("")}
+              disabled={dueEdit.pending}
+              className="pressable flex min-h-7 min-w-7 items-center justify-center rounded-full text-label-3 hover:text-red disabled:opacity-40"
             >
-              Clear
+              <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden>
+                <path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
             </button>
           ) : null}
         </span>
       ) : due ? (
-        onReschedule ? (
-          <button
-            type="button"
-            onClick={dueEdit.start}
-            aria-label={`Change due date (${relativeDays(due)})`}
-            className={`text-caption-1 pressable shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 font-medium transition-colors hover:bg-fill-2 focus-visible:outline-2 focus-visible:outline-blue ${
-              urgent ? "bg-red/10 text-red" : "text-label-3"
-            }`}
-          >
-            {relativeDays(due)}
-          </button>
-        ) : (
-          <span
-            className={`text-caption-1 shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 font-medium ${
-              urgent ? "bg-red/10 text-red" : "text-label-3"
-            }`}
-          >
-            {relativeDays(due)}
-          </span>
-        )
-      ) : onReschedule ? (
-        <button
-          type="button"
-          onClick={dueEdit.start}
-          aria-label="Set due date"
-          className="text-caption-1 pressable shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 font-medium text-label-3 transition-colors hover:bg-fill-2 focus-visible:outline-2 focus-visible:outline-blue"
+        <span
+          className={`text-caption-1 shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 font-medium ${
+            urgent ? "bg-red/10 text-red" : "text-label-3"
+          }`}
         >
-          Set date
-        </button>
+          {relativeDays(due)}
+        </span>
       ) : null}
 
       {onDelete ? (

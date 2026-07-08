@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { TaskList } from "@/components/tasks/TaskList";
 import { AddTaskForm } from "@/components/tasks/AddTaskForm";
 import type { TaskItem } from "@/components/tasks/types";
@@ -10,11 +11,24 @@ import { createTaskAction, deleteTaskAction, toggleTaskAction, updateTaskAction 
 // composer wired to createTaskAction. The composer is always shown so the first
 // task of the day is one tap away; the list only appears when there are tasks.
 // Rows are editable in place — title and due date save via updateTaskAction.
-export function TodayTasks({ tasks, hrefById }: { tasks: TaskItem[]; hrefById: Record<string, string> }) {
+export function TodayTasks({
+  tasks,
+  hrefById,
+  totalOpen,
+}: {
+  tasks: TaskItem[];
+  hrefById: Record<string, string>;
+  totalOpen?: number;
+}) {
   const hasTasks = tasks.length > 0;
   return (
     <div>
-      <h2 className="micro-label mb-1.5 px-3">Tasks</h2>
+      <div className="mb-1.5 flex items-baseline justify-between px-3">
+        <h2 className="micro-label">Tasks</h2>
+        <Link href="/tasks" className="text-footnote pressable rounded-md px-1 text-blue">
+          View all{typeof totalOpen === "number" && totalOpen > tasks.length ? ` (${totalOpen})` : ""}
+        </Link>
+      </div>
       <AddTaskForm onCreate={createTaskAction} className={hasTasks ? "mb-2" : "mb-5"} />
       {hasTasks ? (
         <TaskList
