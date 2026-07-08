@@ -248,8 +248,9 @@ export async function syncBrokerGmail(
 // mailbox is exactly that filter: an address only appears in To/Cc of sent
 // mail when the user actually wrote to them — spam never qualifies.
 
-// Never auto-create contacts for robot mailboxes.
-const NOREPLY_RE = /(no[-._]?reply|do[-._]?not[-._]?reply|mailer-daemon|postmaster|notifications?@|bounce)/i;
+// Never auto-create contacts for robot mailboxes. Shared with the calendar
+// meeting-prompt filter in src/lib/google.ts.
+export const NOREPLY_RE = /(no[-._]?reply|do[-._]?not[-._]?reply|mailer-daemon|postmaster|notifications?@|bounce)/i;
 
 export type ParsedAddress = { email: string; displayName: string | null };
 

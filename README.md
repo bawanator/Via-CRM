@@ -6,7 +6,7 @@ It manages:
 
 1. **Contacts** — every relationship, typed (Broker by default, plus Borrower / Solicitor / Valuer / Accountant / Referrer / … — types are data-driven and addable without code) and located (city, filterable). Brokers carry a four-stage origination pipeline (Introduced → Engaged → Active Submitter → Prime); other contact types don't.
 2. **Deals** — live deals through a five-stage pipeline (Scenario → Term Sheet → Credit → Docs → Settlement) on a drag-and-drop board, deals that don't proceed moved to **Closed / Lost** with a required reason, and settled loans tracked in the **Loan Book** for the life of the term. Deals carry guarantors (up to 3) and borrower details.
-3. **Tasks** — against contacts and deals, surfaced on the Today screen (and, later, synced to Google Tasks).
+3. **Tasks** — against contacts and deals, surfaced on the Today screen and two-way synced to Google Tasks.
 4. **Reports** — count-based origination metrics (deals submitted, live pipeline, outcomes/loss reasons, stage progression, activity), pinnable and buildable without code, and queryable by Claude/any LLM via MCP.
 
 This is a tracking and visibility tool, **not** a loan servicing system. There is no calculation engine — it never computes balances, interest, or payments, and reports are counts/conversions only, never money sums. It holds dates, statuses, people, links, tasks, and reminders. The only arithmetic anywhere is `maturity_date = settlement_date + term months` (date arithmetic, done by a database trigger).
@@ -44,16 +44,16 @@ This is a tracking and visibility tool, **not** a loan servicing system. There i
 
 ### 2. Google OAuth
 
-One OAuth client powers sign-in **and** read-only Gmail sync:
+One OAuth client powers sign-in **and** the Google suite (read-only Gmail sync, Google Tasks sync, read-only Calendar):
 
 1. In [Google Cloud Console](https://console.cloud.google.com) create (or reuse) a project → **APIs & Services → Credentials → Create OAuth client ID → Web application**.
-2. Enable the **Gmail API** for the project (APIs & Services → Library).
-3. On the OAuth consent screen add the scope `https://www.googleapis.com/auth/gmail.readonly` (plus email/profile). No send or modify scopes — ever.
+2. Enable the **Gmail API**, the **Google Tasks API** and the **Google Calendar API** for the project (APIs & Services → Library).
+3. On the OAuth consent screen add the scopes `https://www.googleapis.com/auth/gmail.readonly`, `https://www.googleapis.com/auth/tasks` and `https://www.googleapis.com/auth/calendar.readonly` (plus email/profile). No Gmail send/modify or calendar write scopes — ever.
 4. Authorised redirect URIs: `https://<YOUR-PROJECT-REF>.supabase.co/auth/v1/callback` (and `http://127.0.0.1:54321/auth/v1/callback` for local dev).
 5. In Supabase → Authentication → Providers → Google: paste the client ID/secret and enable.
 6. In Supabase → Authentication → URL Configuration: set the site URL to your Vercel domain and add `https://<your-domain>/auth/callback` to the redirect allowlist.
 
-Sign-in requests `access_type=offline&prompt=consent`, so Supabase returns a Google **refresh token**, which the auth callback stores in `google_oauth_tokens` for the nightly Gmail cron.
+Sign-in requests `access_type=offline&prompt=consent`, so Supabase returns a Google **refresh token**, which the auth callback stores in `google_oauth_tokens` for the nightly cron.
 
 ### 3. Environment
 
@@ -102,6 +102,34 @@ What it does:
 - **Thread indexing for every contact.** "Sync Recent Email" on any contact with an email address pulls recent thread subjects/dates/snippets (never bodies) as `email` interactions, deep-linked back to Gmail. The nightly `/api/cron/gmail-sync` does the same across **all contacts** with an email address (not just brokers), after running discovery first. Newly discovered contacts get their threads synced immediately, so their email tab is populated from the first look.
 - Idempotent per `(contact, thread)`; re-syncs refresh threads that got new replies. Sync failures degrade gracefully and never block the UI (a discovery failure never aborts the thread sync).
 - Scopes are `gmail.readonly` only — never send or modify. The CRM is an index into Gmail, not a copy of it: subject, date, snippet, and thread id are stored; bodies never are.
+
+## Google Tasks sync & meeting-note prompts
+
+Both features ride on the same OAuth token as Gmail sync and run inside the nightly `/api/cron/gmail-sync` cron. Each is gated by its own server env var, **off by default** — flip to `true` in Vercel when ready:
+
+| Flag | Feature |
+| --- | --- |
+| `ENABLE_GOOGLE_TASKS_SYNC` | Two-way task sync with a dedicated **"Vía OS"** Google Tasks list |
+| `ENABLE_MEETING_TASK_PROMPTS` | Auto-created "Add notes from …" tasks after external meetings |
+
+One-time setup:
+
+1. Enable the **Google Tasks API** and **Google Calendar API** in the Cloud project behind the OAuth client (APIs & Services → Library).
+2. Sign out of Vía OS and back in once — the consent screen will ask for the `tasks` and `calendar.readonly` scopes and store a refresh token that covers them.
+
+**What syncs where (tasks):**
+
+- Every CRM task create/update/complete/delete is mirrored (best-effort, never blocking — a Google outage can't fail a CRM write) into the "Vía OS" Google Tasks list, so tasks show up in the Google Tasks and Google Calendar apps. The Google task id is stored back on the row (`tasks.google_task_id`).
+- Ticking a task in Google (Tasks or Calendar) is pulled into the CRM by the nightly cron. **Loop prevention:** those pulled completions are written with `skipGoogleSync`, so a change that *came from* Google is never pushed back out; CRM-side changes push immediately and the cron only pulls, never echoes.
+- Deleting a task **in Google** does *not* delete it in the CRM (Google deletion ≠ CRM deletion — clearing completed tasks in Google is common). Deleting a task in the CRM removes it from Google. CRM tasks created while the flag was off are pushed on the next cron run.
+- Only title, notes, due date and completion status cross the wire; the CRM stores just the Google task id.
+
+**Meeting-note prompts (calendar.readonly — the CRM never writes to the calendar):**
+
+- The nightly cron lists primary-calendar events that **ended in the past 24 hours**. Any event with at least one *external* attendee (not you, not `@viaprivate.com.au`, not meeting-room/`resource.calendar.google.com` or noreply-style addresses) becomes a CRM task: *Add notes from "Coffee with Jono"*, due that day, with the attendee emails in the notes.
+- If an external attendee's email matches a CRM contact, the task is linked to that contact (first match).
+- **Idempotent:** the source event id is stored on the task (`tasks.source_event_id`, unique index), so re-runs never create duplicate prompts — even if you completed or edited the task since.
+- Prompt tasks go through the normal task write path, so they also appear in Google Tasks when task sync is on.
 
 ## Companies
 

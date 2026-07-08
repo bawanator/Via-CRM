@@ -4,14 +4,16 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 
-// Google is the only way in. Sign-in needs email/profile only. The read-only
-// email-sync feature adds gmail.readonly — a Google "restricted" scope that
-// triggers the unverified-app screen — so it's opt-in via env, off until the
-// consent screen is verified. Flip NEXT_PUBLIC_ENABLE_GMAIL_SYNC=true to enable.
-// Send/modify scopes are never requested.
+// Google is the only way in. Sign-in needs email/profile only. One flag
+// (NEXT_PUBLIC_ENABLE_GMAIL_SYNC) governs the whole Google suite: read-only
+// Gmail sync (gmail.readonly — a Google "restricted" scope that triggers the
+// unverified-app screen, hence opt-in via env), Google Tasks two-way sync
+// (tasks — writes only inside our own "Vía OS" list) and meeting-note prompts
+// (calendar.readonly). Gmail send/modify and calendar write scopes are never
+// requested.
 const GMAIL_SYNC_ENABLED = process.env.NEXT_PUBLIC_ENABLE_GMAIL_SYNC === "true";
 const SCOPES = GMAIL_SYNC_ENABLED
-  ? "email profile https://www.googleapis.com/auth/gmail.readonly"
+  ? "email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar.readonly"
   : "email profile";
 
 export function LoginCard() {

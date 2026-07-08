@@ -1,14 +1,23 @@
-// GET /api/cron/gmail-sync — nightly Gmail sync (schedule in vercel.json).
+// GET /api/cron/gmail-sync — nightly Google sync (schedule in vercel.json).
 // Vercel sends "Authorization: Bearer $CRON_SECRET" automatically when the
-// env var is set. Two phases:
+// env var is set. Four phases, each independently try/caught so one failing
+// never aborts the others:
 //
 //   1. Reply-triggered contact discovery: scan recent SENT mail and create
 //      skeleton contacts (type "Other") for addresses the CRM doesn't know —
 //      a contact is only ever created because the user actually wrote to
-//      them, so spam never gets in. Wrapped in try/catch: a discovery
-//      failure never aborts phase 2.
+//      them, so spam never gets in. (gate: ENABLE_GMAIL_DISCOVERY)
 //   2. Thread sync across ALL contacts with an email address (not just
 //      brokers) — subjects/dates/snippets only, never bodies.
+//   3. Google Tasks reconcile: pull Google-side completions into the CRM
+//      (with skipGoogleSync so they're not echoed back — loop prevention) and
+//      push CRM tasks created while sync was off. A task deleted in Google is
+//      deliberately NOT deleted in the CRM. (gate: ENABLE_GOOGLE_TASKS_SYNC)
+//   4. Meeting-note prompts: for calendar events that ended in the past 24h
+//      with at least one external attendee, create an "Add notes from …" CRM
+//      task, linked to the matching contact when an attendee email matches.
+//      Idempotent via the unique index on tasks.source_event_id.
+//      (gate: ENABLE_MEETING_TASK_PROMPTS)
 //
 // Bounded work: last 30 days, max 15 threads per contact. Per-contact
 // failures are collected, never abort the run; a dead refresh token returns
@@ -16,8 +25,19 @@
 // re-connects.
 
 import { NextResponse, type NextRequest } from "next/server";
+import { todayISO } from "@/lib/dates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { discoverContactsFromSent, refreshAccessToken, syncBrokerGmail, type DiscoveryResult } from "@/lib/gmail";
+import {
+  ensureViaTasklist,
+  eventHasEnded,
+  externalAttendeeEmails,
+  listRecentEvents,
+  listTasks as listGoogleTasks,
+  meetingTaskTitle,
+  reconcileTaskAction,
+} from "@/lib/google";
+import { completeTask, createTask, pushTaskToGoogle } from "@/lib/crm/tasks";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -101,5 +121,135 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, discovery, results });
+  // Phase 3: Google Tasks reconcile — pull completions made in Google
+  // (Calendar/Tasks apps) into the CRM, and push any CRM tasks that were
+  // created while sync was off. Best-effort, never aborts phase 4.
+  type TasksSyncSummary = { completedFromGoogle: number; pushed: number };
+  let tasksSync: TasksSyncSummary | { error: string } | { skipped: string };
+  if (process.env.ENABLE_GOOGLE_TASKS_SYNC !== "true") {
+    tasksSync = { skipped: "tasks sync disabled (ENABLE_GOOGLE_TASKS_SYNC != true)" };
+  } else
+  try {
+    const tasklistId = await ensureViaTasklist(accessToken);
+    const googleTasks = await listGoogleTasks(accessToken, tasklistId, { showCompleted: true });
+    const googleById = new Map(googleTasks.map((t) => [t.id, t]));
+
+    const { data: crmTasks, error: crmTasksError } = await db
+      .from("tasks")
+      .select("id, title, completed, google_task_id");
+    if (crmTasksError) throw new Error(`Loading CRM tasks: ${crmTasksError.message}`);
+
+    let completedFromGoogle = 0;
+    let pushed = 0;
+    for (const task of crmTasks ?? []) {
+      if (task.google_task_id) {
+        // Ticked in Google, still open here → complete in the CRM with
+        // skipGoogleSync so the change isn't pushed straight back (loop
+        // prevention). A task absent from Google (deleted/cleared there) is
+        // left alone — Google deletion ≠ CRM deletion.
+        if (reconcileTaskAction(googleById.get(task.google_task_id), task.completed) === "complete-crm") {
+          await completeTask(db, task.id, true, { skipGoogleSync: true });
+          completedFromGoogle += 1;
+        }
+      } else if (!task.completed) {
+        // Never synced (created while the flag was off): fetch the full row
+        // and push it. pushTaskToGoogle is best-effort and never throws.
+        const { data: full } = await db.from("tasks").select("*").eq("id", task.id).maybeSingle();
+        if (full) {
+          await pushTaskToGoogle(db, full);
+          pushed += 1;
+        }
+      }
+    }
+    tasksSync = { completedFromGoogle, pushed };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Tasks reconcile failed";
+    console.error("Cron gmail-sync: Google Tasks reconcile failed:", message);
+    tasksSync = { error: message };
+  }
+
+  // Phase 4: meeting-note prompts — calendar events that ENDED in the past
+  // 24h with at least one external attendee become an "Add notes from …"
+  // task. Idempotent: tasks.source_event_id carries a unique partial index,
+  // and we pre-check it so nightly re-runs skip already-prompted events.
+  type MeetingPromptsSummary = { created: number; skipped: number };
+  let meetingPrompts: MeetingPromptsSummary | { error: string } | { skipped: string };
+  if (process.env.ENABLE_MEETING_TASK_PROMPTS !== "true") {
+    meetingPrompts = { skipped: "meeting prompts disabled (ENABLE_MEETING_TASK_PROMPTS != true)" };
+  } else
+  try {
+    const now = new Date();
+    const timeMin = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const events = await listRecentEvents(accessToken, { timeMin, timeMax: now.toISOString() });
+
+    // Only meetings that already ended, and only ones with a real external
+    // (non-self, non-viaprivate, non-resource/noreply) attendee.
+    const candidates = events
+      .filter((event) => eventHasEnded(event, now))
+      .map((event) => ({ event, externalEmails: externalAttendeeEmails(event.attendees) }))
+      .filter((c) => c.externalEmails.length > 0);
+
+    let created = 0;
+    let skipped = 0;
+    if (candidates.length > 0) {
+      const { data: existingRows, error: existingError } = await db
+        .from("tasks")
+        .select("source_event_id")
+        .in(
+          "source_event_id",
+          candidates.map((c) => c.event.id),
+        );
+      if (existingError) throw new Error(`Checking existing meeting tasks: ${existingError.message}`);
+      const alreadyPrompted = new Set((existingRows ?? []).map((r) => r.source_event_id));
+
+      // Match attendees to contacts. Attendee emails arrive lowercased from
+      // externalAttendeeEmails; comparison against returned rows is
+      // case-insensitive. First matching attendee wins.
+      const allExternal = [...new Set(candidates.flatMap((c) => c.externalEmails))];
+      const { data: contactRows, error: contactError } = await db
+        .from("contacts")
+        .select("id, email")
+        .in("email", allExternal);
+      if (contactError) throw new Error(`Matching attendees to contacts: ${contactError.message}`);
+      const contactByEmail = new Map(
+        (contactRows ?? []).flatMap((c) => (c.email ? [[c.email.toLowerCase(), c.id] as const] : [])),
+      );
+
+      const today = todayISO(now); // Sydney calendar day, not UTC — a 3am cron must not date tasks yesterday
+      for (const { event, externalEmails } of candidates) {
+        if (alreadyPrompted.has(event.id)) {
+          skipped += 1;
+          continue;
+        }
+        const contactId = externalEmails.map((e) => contactByEmail.get(e)).find(Boolean) ?? null;
+        try {
+          // Through createTask so the prompt also pushes to Google Tasks.
+          await createTask(db, {
+            title: meetingTaskTitle(event.summary),
+            notes: `Meeting attendees: ${externalEmails.join(", ")}`,
+            due_date: today,
+            source_event_id: event.id,
+            contact_id: contactId,
+          });
+          created += 1;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Creating meeting task failed";
+          // Unique violation on source_event_id = already prompted (race with
+          // a previous run) — that's the idempotency working, count as skip.
+          if (/duplicate key|23505|tasks_source_event_unique/i.test(message)) {
+            skipped += 1;
+          } else {
+            console.error(`Cron gmail-sync: meeting prompt for event ${event.id} failed:`, message);
+          }
+        }
+      }
+    }
+    meetingPrompts = { created, skipped };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Meeting prompts failed";
+    console.error("Cron gmail-sync: meeting prompts failed:", message);
+    meetingPrompts = { error: message };
+  }
+
+  return NextResponse.json({ ok: true, discovery, results, tasksSync, meetingPrompts });
 }
