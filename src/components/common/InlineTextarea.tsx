@@ -80,11 +80,36 @@ export function InlineTextarea({
         }}
         className="text-body w-full resize-y rounded-md bg-fill-2 px-2 -mx-2 py-1.5 text-label placeholder:text-label-3 focus:outline-none focus-visible:outline-2 focus-visible:outline-blue disabled:opacity-60"
       />
-      {pending ? (
-        <p className="text-caption-1 mt-0.5 px-0.5 text-label-3">Saving…</p>
-      ) : (
-        <p className="text-caption-1 mt-0.5 px-0.5 text-label-3">⌘↵ to save · Esc to cancel</p>
-      )}
+      {/* Explicit Save / Cancel: blur-to-save is unreliable on iOS (tapping the
+          page often doesn't dismiss the keyboard) and ⌘↵ doesn't exist there.
+          pointerdown + preventDefault keeps the textarea focused so the blur
+          handler doesn't race these buttons. */}
+      <div className="mt-1.5 flex items-center gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            save(draft.trim());
+          }}
+          className="text-footnote pressable min-h-8 rounded-lg border border-accent-ink/10 bg-accent px-3 font-semibold text-accent-ink disabled:opacity-40"
+        >
+          {pending ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            cancelRef.current = false;
+            stop();
+          }}
+          className="text-footnote pressable min-h-8 rounded-lg px-3 font-medium text-label-2 disabled:opacity-40"
+        >
+          Cancel
+        </button>
+        <p className="text-caption-1 hidden text-label-3 sm:block">⌘↵ saves · Esc cancels</p>
+      </div>
       {error ? <p className="text-footnote mt-0.5 px-0.5 text-red">{error}</p> : null}
     </div>
   );
