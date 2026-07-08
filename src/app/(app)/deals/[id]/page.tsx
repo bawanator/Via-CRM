@@ -18,6 +18,7 @@ import { GuarantorsSection } from "@/components/deals/GuarantorsSection";
 import { KeyDatesSection } from "@/components/deals/KeyDatesSection";
 import { NotesSection } from "@/components/deals/NotesSection";
 import { StagePicker } from "@/components/deals/StagePicker";
+import { BackButton } from "@/components/common/BackButton";
 import type { InteractionRow, InteractionType } from "@/lib/database.types";
 import type { TaskItem } from "@/components/tasks/types";
 
@@ -98,6 +99,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
 
   return (
     <>
+      <BackButton fallback="/deals" />
       <header className="mb-5 pt-2">
         <DealTitle dealId={deal.id} name={deal.name} />
         <div className="mt-1.5">

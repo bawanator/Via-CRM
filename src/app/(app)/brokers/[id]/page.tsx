@@ -7,6 +7,7 @@ import { listTasks } from "@/lib/crm/tasks";
 import type { ContactTypeRow, DriveLinkRow } from "@/lib/database.types";
 import type { TaskItem } from "@/components/tasks/types";
 import { ContactProfile } from "@/components/brokers/ContactProfile";
+import { BackButton } from "@/components/common/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -39,5 +40,10 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
     subtitle: t.deal?.name ?? null,
   }));
 
-  return <ContactProfile contact={contact} types={types} tasks={tasks} driveLinks={driveLinks} />;
+  return (
+    <div>
+      <BackButton fallback="/brokers" />
+      <ContactProfile contact={contact} types={types} tasks={tasks} driveLinks={driveLinks} />
+    </div>
+  );
 }

@@ -7,6 +7,7 @@ import { GroupedSection, LinkRow } from "@/components/ui/GroupedList";
 import { CompanyHeader } from "@/components/companies/CompanyHeader";
 import { CompanyTabs } from "@/components/companies/CompanyTabs";
 import { DeleteCompanyRow } from "@/components/companies/DeleteCompanyRow";
+import { BackButton } from "@/components/common/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
 
   return (
     <>
+      <BackButton fallback="/companies" />
       <CompanyHeader
         company={{ id: company.id, name: company.name, domain: company.domain, location: company.location }}
       />

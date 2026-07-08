@@ -134,32 +134,104 @@ function FilterSelect({
 
 // Kanban is Broker-type only by nature. Columns show title + count (no
 // inline stage description — #19). Search still narrows the cards.
+// On phones the columns become stage tiles + a list of the selected stage
+// (same Supabase-style pattern as the deal board — no sideways swiping).
 function Kanban({ contacts, q }: { contacts: ContactWithStats[]; q: string }) {
   const brokers = contacts.filter((c) => c.type === DEFAULT_CONTACT_TYPE && matchesSearch(c, q));
+  const [selectedStage, setSelectedStage] = useState<(typeof BROKER_STAGES)[number]>(BROKER_STAGES[0]);
+  const selectedItems = brokers.filter((b) => b.stage === selectedStage);
+
   return (
-    <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:snap-none md:px-0">
-      {BROKER_STAGES.map((stage) => {
-        const items = brokers.filter((b) => b.stage === stage);
-        return (
-          <section
-            key={stage}
-            className="w-[80vw] max-w-72 shrink-0 snap-center md:w-auto md:min-w-0 md:max-w-none md:flex-1"
-          >
-            <header className="mb-2 flex items-center gap-2 px-1">
-              <h2 className="micro-label">{BROKER_STAGE_LABELS[stage]}</h2>
-              <Badge>{items.length}</Badge>
-            </header>
-            <div className="flex flex-col gap-2">
-              {items.length === 0 ? (
-                <p className="text-footnote rounded-xl bg-card px-4 py-3 text-label-3">No brokers</p>
-              ) : (
-                items.map((b) => <BrokerCard key={b.id} broker={b} />)
-              )}
-            </div>
-          </section>
-        );
-      })}
-    </div>
+    <>
+      {/* Phone: stage tiles + selected-stage list */}
+      <div className="md:hidden">
+        <div
+          role="tablist"
+          aria-label="Broker stage"
+          className="card mb-3 grid grid-cols-4 gap-px overflow-hidden rounded-xl bg-separator"
+        >
+          {BROKER_STAGES.map((stage) => {
+            const count = brokers.filter((b) => b.stage === stage).length;
+            const selected = selectedStage === stage;
+            return (
+              <button
+                key={stage}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setSelectedStage(stage)}
+                className={`flex min-h-16 flex-col items-center justify-center gap-0.5 px-1 py-2 text-center transition-colors ${
+                  selected ? "bg-fill-2" : "bg-card"
+                }`}
+              >
+                <span className={`text-title-3 ${count === 0 ? "text-label-3" : "text-label"}`}>{count}</span>
+                <span
+                  className={`text-caption-1 leading-tight ${
+                    selected ? "font-semibold text-label" : "text-label-2"
+                  }`}
+                >
+                  {BROKER_STAGE_LABELS[stage]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {selectedItems.length === 0 ? (
+          <p className="card dotted-canvas text-subheadline rounded-xl bg-card px-4 py-8 text-center text-label-3">
+            No brokers in this stage.
+          </p>
+        ) : (
+          <div className="card hairline-rows overflow-hidden rounded-xl bg-card">
+            {selectedItems.map((b) => (
+              <BrokerListRow key={b.id} broker={b} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: the full five-column board */}
+      <div className="hidden gap-3 md:flex">
+        {BROKER_STAGES.map((stage) => {
+          const items = brokers.filter((b) => b.stage === stage);
+          return (
+            <section key={stage} className="min-w-0 flex-1">
+              <header className="mb-2 flex items-center gap-2 px-1">
+                <h2 className="micro-label">{BROKER_STAGE_LABELS[stage]}</h2>
+                <Badge>{items.length}</Badge>
+              </header>
+              <div className="flex flex-col gap-2">
+                {items.length === 0 ? (
+                  <p className="text-footnote rounded-xl bg-card px-4 py-3 text-label-3">No brokers</p>
+                ) : (
+                  items.map((b) => <BrokerCard key={b.id} broker={b} />)
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// Full-width tappable row for the phone stage list: name + live-deal chip,
+// company · location beneath, chevron affordance.
+function BrokerListRow({ broker }: { broker: ContactWithStats }) {
+  const caption = [broker.company?.name, broker.location].filter(Boolean).join(" · ");
+  return (
+    <Link href={`/brokers/${broker.id}`} className="pressable flex items-center gap-3 px-3 py-2.5">
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="text-headline min-w-0 truncate text-label">{broker.full_name}</span>
+          {broker.live_deal_count > 0 ? <Badge tone="blue">{broker.live_deal_count} live</Badge> : null}
+        </span>
+        {caption ? <span className="text-footnote block truncate text-label-2">{caption}</span> : null}
+      </span>
+      <svg className="h-3.5 w-3.5 shrink-0 text-label-3" viewBox="0 0 14 14" fill="none" aria-hidden>
+        <path d="M5 2.5 9.5 7 5 11.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </Link>
   );
 }
 
