@@ -16,7 +16,7 @@ This is a tracking and visibility tool, **not** a loan servicing system. There i
 ## Stack
 
 - **Frontend:** Next.js (App Router) on Vercel, TypeScript strict, Tailwind CSS v4. Installable PWA, clean white Apple-HIG surface (light only), drag-and-drop deal board (@dnd-kit), click-to-edit fields, mobile-first (tested at 390px).
-- **Database:** Supabase Postgres. **This is its own Supabase project** (`likewwztdnzrwhkvtjpf`) **owned by the viaprivate.com.au Workspace org** — completely separate from the website and broker-portal projects. Nothing is shared with those systems.
+- **Database:** Supabase Postgres. **This is its own Supabase project** (`fbxbhbrmzfdjhgptfyve`) **in Sydney (ap-southeast-2), owned by the viaprivate.com.au Workspace org** — completely separate from the website and broker-portal projects. Nothing is shared with those systems.
 - **Auth:** Supabase Auth, Google sign-in only, gated by an allowlist table. Every table carries `created_by`/`updated_by`.
 - **Integrations:** Gmail (read-only), Google Drive (pasted links only), MCP server for Claude.
 
