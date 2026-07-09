@@ -5,10 +5,10 @@ import { searchAll } from "@/lib/crm/search";
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q") ?? "";
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ results: [] }, { status: 401 });
+  // Local JWT check — this route fires on every search keystroke, so a
+  // getUser network round trip here was multiplied. RLS covers the data.
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims) return NextResponse.json({ results: [] }, { status: 401 });
 
   try {
     const results = await searchAll(supabase, q);

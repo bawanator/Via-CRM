@@ -23,15 +23,17 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // Refreshes the auth token if expired — required for Server Components.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims verifies the JWT locally (asymmetric keys, JWKS cached) instead
+  // of calling the Supabase Auth server on EVERY navigation like getUser did —
+  // that round trip was pure latency on each page. Expired sessions still
+  // refresh here (getClaims goes through the session + cookie adapter).
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims ?? null;
 
   const { pathname } = request.nextUrl;
   const isPublic = pathname.startsWith("/login") || pathname.startsWith("/auth");
 
-  if (!user && !isPublic) {
+  if (!claims && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";

@@ -31,10 +31,10 @@ import {
   updateDeal,
 } from "../src/lib/crm/deals";
 import { addGuarantor, deleteGuarantor, listGuarantors, updateGuarantor } from "../src/lib/crm/guarantors";
-import { addKeyDate, completeKeyDate, deleteKeyDate, listUpcomingKeyDates } from "../src/lib/crm/keyDates";
+import { addKeyDate, completeKeyDate, listUpcomingKeyDates } from "../src/lib/crm/keyDates";
 import { addDriveLink, deleteDriveLink, listDriveLinks } from "../src/lib/crm/driveLinks";
-import { deleteInteraction, logInteraction } from "../src/lib/crm/interactions";
-import { completeTask, createTask, deleteTask, listTasks } from "../src/lib/crm/tasks";
+import { logInteraction } from "../src/lib/crm/interactions";
+import { completeTask, createTask, deleteTask } from "../src/lib/crm/tasks";
 import { runReport, type ReportMetric } from "../src/lib/crm/reports";
 import { searchAll } from "../src/lib/crm/search";
 import { whatsDue } from "../src/lib/crm/today";

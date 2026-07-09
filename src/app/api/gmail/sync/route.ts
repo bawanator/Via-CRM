@@ -15,10 +15,10 @@ const bodySchema = z.object({ brokerId: z.string().uuid() });
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    // Local JWT check (claims.sub = user id); RLS scopes the token row anyway.
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const claims = claimsData?.claims;
+    if (!claims) {
       return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
     }
 
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { data: token, error: tokenError } = await supabase
       .from("google_oauth_tokens")
       .select("refresh_token")
-      .eq("user_id", user.id)
+      .eq("user_id", String(claims.sub))
       .maybeSingle();
     if (tokenError) {
       return NextResponse.json({ ok: false, error: `Loading Google token: ${tokenError.message}` }, { status: 502 });

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { whatsDue } from "@/lib/crm/today";
 import { emailsSentToday, overviewStats } from "@/lib/crm/overview";
@@ -16,13 +17,26 @@ import type { TaskItem } from "@/components/tasks/types";
 
 export const dynamic = "force-dynamic";
 
+// Streams in after first paint: the emails-sent count needs two Google round
+// trips (token refresh + Gmail query), which must never block the page. The
+// card renders immediately with the task count; this sub-line follows.
+async function TasksCompletedCard({ count }: { count: number }) {
+  const supabase = await createClient();
+  const sentToday = await emailsSentToday(supabase);
+  return (
+    <StatCard
+      label="Tasks completed"
+      value={count}
+      sub={sentToday === null ? "today" : `+ ${sentToday} ${sentToday === 1 ? "email" : "emails"} sent today`}
+      icon={CheckCircleIcon}
+      href="/tasks"
+    />
+  );
+}
+
 export default async function TodayPage() {
   const supabase = await createClient();
-  const [data, stats, sentToday] = await Promise.all([
-    whatsDue(supabase),
-    overviewStats(supabase),
-    emailsSentToday(supabase),
-  ]);
+  const [data, stats] = await Promise.all([whatsDue(supabase), overviewStats(supabase)]);
 
   const longDate = new Intl.DateTimeFormat("en-AU", {
     weekday: "long",
@@ -70,13 +84,13 @@ export default async function TodayPage() {
       <PipelineStrip counts={data.liveDealsByStage} />
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          label="Tasks completed"
-          value={stats.tasksCompletedToday}
-          sub={sentToday === null ? "today" : `+ ${sentToday} ${sentToday === 1 ? "email" : "emails"} sent today`}
-          icon={CheckCircleIcon}
-          href="/tasks"
-        />
+        <Suspense
+          fallback={
+            <StatCard label="Tasks completed" value={stats.tasksCompletedToday} sub="today" icon={CheckCircleIcon} href="/tasks" />
+          }
+        >
+          <TasksCompletedCard count={stats.tasksCompletedToday} />
+        </Suspense>
         <StatCard
           label="Deals this month"
           value={stats.dealsThisMonth}
