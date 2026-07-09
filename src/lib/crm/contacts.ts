@@ -101,15 +101,36 @@ export async function getContact(db: Db, id: string): Promise<ContactDetail | nu
   if (!data) return null;
   const contact = data;
 
-  const [withStats, interactionsRes, dealsRes] = await Promise.all([
+  // Emails and human-entered interactions are fetched SEPARATELY. A single
+  // recency-capped query let a busy broker's synced email threads crowd every
+  // note/call/meeting out of the window — notes "disappeared" from the record.
+  // Emails are an index (capped, newest first); human entries load in full.
+  const [withStats, emailsRes, humanRes, dealsRes] = await Promise.all([
     attachStats(db, [contact]),
-    db.from("interactions").select("*").eq("broker_id", id).order("occurred_at", { ascending: false }).limit(200),
+    db
+      .from("interactions")
+      .select("*")
+      .eq("broker_id", id)
+      .eq("type", "email")
+      .order("occurred_at", { ascending: false })
+      .limit(100),
+    db
+      .from("interactions")
+      .select("*")
+      .eq("broker_id", id)
+      .neq("type", "email")
+      .order("occurred_at", { ascending: false })
+      .limit(500),
     db.from("deals").select("*").eq("broker_id", id).order("created_at", { ascending: false }),
   ]);
 
+  const emails = assertOk(emailsRes.data, emailsRes.error, "Loading email interactions");
+  const human = assertOk(humanRes.data, humanRes.error, "Loading interactions");
+  const interactions = [...emails, ...human].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+
   return {
     ...withStats[0],
-    interactions: assertOk(interactionsRes.data, interactionsRes.error, "Loading interactions"),
+    interactions,
     deals: assertOk(dealsRes.data, dealsRes.error, "Loading contact deals"),
   };
 }

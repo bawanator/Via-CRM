@@ -1,7 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import type { InteractionRow } from "@/lib/database.types";
 import { formatDateTime } from "@/lib/format";
 import { addNoteAction, deleteInteractionAction } from "@/app/(app)/brokers/actions";
@@ -10,22 +9,38 @@ import { SectionHeader } from "@/components/brokers/SectionHeader";
 // Notes tab: an always-visible composer on top of a timestamped notes
 // timeline (interactions of type "note"). The evergreen `notes` column is the
 // "About" field on Overview — this is the running log.
+//
+// Adding is optimistic: the note renders the moment you tap Add, the draft
+// clears, and the server action's revalidate delivers the real row in the
+// same round trip (no extra router.refresh — that was a second full render).
 export function NotesTab({ brokerId, notes }: { brokerId: string; notes: InteractionRow[] }) {
-  const router = useRouter();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [shownNotes, addOptimisticNote] = useOptimistic(notes, (current, summary: string) => [
+    {
+      id: `optimistic-${current.length}`,
+      broker_id: brokerId,
+      deal_id: null,
+      type: "note",
+      summary,
+      occurred_at: new Date().toISOString(),
+      gmail_thread_id: null,
+    } as InteractionRow,
+    ...current,
+  ]);
 
   function handleAdd() {
     const summary = draft.trim();
     if (!summary || pending) return;
+    setDraft("");
     startTransition(async () => {
+      addOptimisticNote(summary);
       const res = await addNoteAction({ broker_id: brokerId, summary });
       if (res.ok) {
         setError(null);
-        setDraft("");
-        router.refresh();
       } else {
+        setDraft(summary); // give the words back — nothing was saved
         setError(res.error);
       }
     });
@@ -66,12 +81,12 @@ export function NotesTab({ brokerId, notes }: { brokerId: string; notes: Interac
       </div>
 
       <div className="card hairline-rows overflow-hidden rounded-xl bg-card">
-        {notes.length === 0 ? (
+        {shownNotes.length === 0 ? (
           <div className="flex min-h-11 items-center px-4 py-2.5">
             <p className="text-footnote text-label-3">No notes yet.</p>
           </div>
         ) : (
-          notes.map((note) => <NoteRow key={note.id} brokerId={brokerId} note={note} />)
+          shownNotes.map((note) => <NoteRow key={note.id} brokerId={brokerId} note={note} />)
         )}
       </div>
     </section>
@@ -81,7 +96,6 @@ export function NotesTab({ brokerId, notes }: { brokerId: string; notes: Interac
 // One logged note with a quiet "×" delete at the row end — the first tap turns
 // it into an explicit "Delete?" confirm before anything fires.
 function NoteRow({ brokerId, note }: { brokerId: string; note: InteractionRow }) {
-  const router = useRouter();
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -89,10 +103,9 @@ function NoteRow({ brokerId, note }: { brokerId: string; note: InteractionRow })
   function handleDelete() {
     setError(null);
     startTransition(async () => {
+      // The action revalidates the record path — its response updates the list.
       const res = await deleteInteractionAction(note.id, brokerId);
-      if (res.ok) {
-        router.refresh();
-      } else {
+      if (!res.ok) {
         setConfirm(false);
         setError(res.error);
       }

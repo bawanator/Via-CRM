@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { INTERACTION_TYPES, INTERACTION_TYPE_LABELS } from "@/lib/domain";
 import { todayISO } from "@/lib/dates";
@@ -24,7 +23,6 @@ export function LogInteractionSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -47,7 +45,6 @@ export function LogInteractionSheet({
       if (res.ok) {
         setError(null);
         onOpenChange(false);
-        router.refresh();
       } else {
         setError(res.error);
       }

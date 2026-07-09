@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { deleteReportAction, setReportPinnedAction } from "@/app/(app)/reports/actions";
@@ -20,7 +19,6 @@ export function ReportControls({
   brokers: BrokerOption[];
   pinnedCount: number;
 }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -35,7 +33,6 @@ export function ReportControls({
         setError(res.error);
         return;
       }
-      router.refresh();
     });
   }
 
@@ -48,7 +45,6 @@ export function ReportControls({
         return;
       }
       setConfirmingDelete(false);
-      router.refresh();
     });
   }
 

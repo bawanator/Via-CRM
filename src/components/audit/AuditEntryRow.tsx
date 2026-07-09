@@ -53,6 +53,10 @@ function recordLabel(entry: AuditLogRow): string {
     case "key_dates":
     case "drive_links":
       return asString(data.label) ?? fallback;
+    case "deal_securities":
+      return asString(data.address) ?? fallback;
+    case "guarantors":
+      return asString(data.full_name) ?? fallback;
     case "interactions": {
       const summary = asString(data.summary);
       return summary ? truncate(summary, 60) : fallback;
@@ -71,7 +75,9 @@ function recordLink(entry: AuditLogRow): { href: string; label: string } | null 
       return { href: `/brokers/${entry.record_id}`, label: "Open record" };
     case "deals":
       return { href: `/deals/${entry.record_id}`, label: "Open record" };
-    case "key_dates": {
+    case "key_dates":
+    case "deal_securities":
+    case "guarantors": {
       const dealId = asString(data.deal_id);
       return dealId ? { href: `/deals/${dealId}`, label: "Open deal" } : null;
     }

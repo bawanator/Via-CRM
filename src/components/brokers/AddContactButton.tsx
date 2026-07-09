@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import type { ContactTypeRow } from "@/lib/database.types";
 import { createContactAction } from "@/app/(app)/brokers/actions";
@@ -11,7 +10,6 @@ import { ContactFormFields, contactFormValues, SheetSubmitButton } from "@/compo
 const FORM_ID = "add-contact-form";
 
 export function AddContactButton({ types }: { types: ContactTypeRow[] }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -24,7 +22,6 @@ export function AddContactButton({ types }: { types: ContactTypeRow[] }) {
       if (res.ok) {
         setError(null);
         setOpen(false);
-        router.refresh();
       } else {
         setError(res.error);
       }

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import type { DriveLinkRow } from "@/lib/database.types";
 import { addDriveLinkAction, deleteDriveLinkAction } from "@/app/(app)/brokers/actions";
@@ -13,7 +12,6 @@ import { SheetSubmitButton } from "@/components/brokers/ContactFormFields";
 const FORM_ID = "add-drive-link-form";
 
 export function DriveLinksSection({ contactId, links }: { contactId: string; links: DriveLinkRow[] }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -32,7 +30,6 @@ export function DriveLinksSection({ contactId, links }: { contactId: string; lin
       if (res.ok) {
         setError(null);
         setOpen(false);
-        router.refresh();
       } else {
         setError(res.error);
       }
@@ -45,7 +42,6 @@ export function DriveLinksSection({ contactId, links }: { contactId: string; lin
     startTransition(async () => {
       const res = await deleteDriveLinkAction(id, contactId);
       if (!res.ok) setError(res.error);
-      else router.refresh();
       setRemovingId(null);
     });
   }

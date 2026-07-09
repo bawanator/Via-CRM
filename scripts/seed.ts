@@ -42,6 +42,7 @@ import {
 import { createCompany } from "@/lib/crm/companies";
 import { createContact } from "@/lib/crm/contacts";
 import { createDeal, moveDealStage } from "@/lib/crm/deals";
+import { addSecurity } from "@/lib/crm/securities";
 import { addGuarantor } from "@/lib/crm/guarantors";
 import { logInteraction } from "@/lib/crm/interactions";
 import { addKeyDate, completeKeyDate } from "@/lib/crm/keyDates";
@@ -103,11 +104,18 @@ async function main() {
     const { company_name: _companyName, ...fields } = contactInputSchema.parse(input);
     return createContact(db, { ...fields, company_id: companyId });
   };
-  const seedDeal = (input: z.input<typeof dealInputSchema>) => createDeal(db, dealInputSchema.parse(input));
+  // Securities moved to their own table (00005): pull the seed address out,
+  // create the deal, then attach the address as the first security row.
+  const seedDeal = async (input: z.input<typeof dealInputSchema> & { security_address?: string }) => {
+    const { security_address, ...dealInput } = input;
+    const deal = await createDeal(db, dealInputSchema.parse(dealInput));
+    if (security_address) await addSecurity(db, { deal_id: deal.id, address: security_address });
+    return deal;
+  };
   // Create a live deal at Scenario, then walk it to its current stage so the
   // audit log records real transitions (stage_progression reads from them).
   const seedLiveDeal = async (
-    input: Omit<z.input<typeof dealInputSchema>, "pipeline_stage" | "status">,
+    input: Omit<z.input<typeof dealInputSchema>, "pipeline_stage" | "status"> & { security_address?: string },
     targetStage: DealPipelineStage,
   ) => {
     const deal = await seedDeal({ ...input, pipeline_stage: "scenario", status: "live" });

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
 import type { BrokerStage } from "@/lib/database.types";
 import { BROKER_STAGES, BROKER_STAGE_HELP, BROKER_STAGE_LABELS } from "@/lib/domain";
@@ -12,7 +11,6 @@ import { SelectField } from "@/components/ui/Field";
 // shows the chosen stage optimistically and reverts if the save fails.
 // Broker-only: the record page renders it just for Broker-type contacts.
 export function StageControl({ contactId, stage }: { contactId: string; stage: BrokerStage }) {
-  const router = useRouter();
   const [optimisticStage, setOptimisticStage] = useOptimistic(stage);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -23,11 +21,7 @@ export function StageControl({ contactId, stage }: { contactId: string; stage: B
     startTransition(async () => {
       setOptimisticStage(nextStage);
       const res = await updateContactStageAction(contactId, nextStage);
-      if (res.ok) {
-        router.refresh();
-      } else {
-        setError(res.error);
-      }
+      if (!res.ok) setError(res.error);
     });
   }
 

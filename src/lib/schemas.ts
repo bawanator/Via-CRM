@@ -94,7 +94,6 @@ export const dealInputSchema = z.object({
   borrower_contact_name: optionalText,
   borrower_contact_email: optionalEmail,
   borrower_contact_phone: optionalText,
-  security_address: optionalText,
   loan_amount: optionalAmount,
   product: dealProductSchema.nullable().optional(),
   funder: dealFunderSchema.nullable().optional(),
@@ -111,6 +110,16 @@ export const dealInputSchema = z.object({
 });
 
 export const dealUpdateSchema = dealInputSchema.partial();
+
+// Create-time convenience: an optional first security address, stored as a
+// deal_securities row (never a deals column).
+export const dealCreateSchema = dealInputSchema.extend({ security_address: optionalText });
+
+export const dealSecurityInputSchema = z.object({
+  deal_id: z.string().uuid(),
+  address: z.string().trim().min(1, "Address is required").max(500),
+});
+export const dealSecurityUpdateSchema = dealSecurityInputSchema.omit({ deal_id: true }).partial();
 
 export const settleDealSchema = z.object({
   settlement_date: isoDate,

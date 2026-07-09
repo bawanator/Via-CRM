@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { FormEvent, ReactNode } from "react";
 import type { ReportMetric } from "@/lib/crm/reports";
@@ -53,7 +52,6 @@ export function ReportBuilderSheet({
   trigger: ReactNode;
   report?: ReportForEdit;
 }) {
-  const router = useRouter();
   const initial = report ? coerceStoredSpec(report.spec) : null;
 
   const [open, setOpen] = useState(false);
@@ -118,7 +116,6 @@ export function ReportBuilderSheet({
         return;
       }
       setOpen(false);
-      router.refresh();
     });
   }
 

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getDeal, type DealDetail } from "@/lib/crm/deals";
+import { listContacts } from "@/lib/crm/contacts";
 import { listInteractionsForDeal } from "@/lib/crm/interactions";
 import { listTasks } from "@/lib/crm/tasks";
 import { isUuid } from "@/lib/crm/db";
@@ -15,6 +16,7 @@ import { DealTasksSection } from "@/components/deals/DealTasksSection";
 import { DealTitle } from "@/components/deals/DealTitle";
 import { DriveLinksSection } from "@/components/deals/DriveLinksSection";
 import { GuarantorsSection } from "@/components/deals/GuarantorsSection";
+import { SecuritiesSection } from "@/components/deals/SecuritiesSection";
 import { KeyDatesSection } from "@/components/deals/KeyDatesSection";
 import { NotesSection } from "@/components/deals/NotesSection";
 import { StagePicker } from "@/components/deals/StagePicker";
@@ -85,10 +87,12 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const deal: DealDetail | null = await getDeal(supabase, id);
   if (!deal) notFound();
 
-  const [interactions, dealTasks] = await Promise.all([
+  const [interactions, dealTasks, brokers] = await Promise.all([
     listInteractionsForDeal(supabase, id),
     listTasks(supabase, { dealId: id }),
+    listContacts(supabase, { type: "Broker" }),
   ]);
+  const brokerOptions = brokers.map((b) => ({ id: b.id, full_name: b.full_name }));
   const tasks: TaskItem[] = dealTasks.map((t) => ({
     id: t.id,
     title: t.title,
@@ -125,7 +129,9 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         <DealStatusActions dealId={deal.id} status={deal.status} />
       </GroupedSection>
 
-      <DealDetailsSection deal={deal} />
+      <DealDetailsSection deal={deal} brokerOptions={brokerOptions} />
+
+      <SecuritiesSection dealId={deal.id} securities={deal.securities} />
 
       <GuarantorsSection dealId={deal.id} guarantors={deal.guarantors} />
 

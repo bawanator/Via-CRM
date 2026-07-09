@@ -7,9 +7,11 @@ import { createClient } from "@/lib/supabase/server";
 import {
   brokerInputSchema,
   brokerStageSchema,
-  dealInputSchema,
+  dealCreateSchema,
   dealUpdateSchema,
   driveLinkInputSchema,
+  dealSecurityInputSchema,
+  dealSecurityUpdateSchema,
   guarantorInputSchema,
   guarantorUpdateSchema,
   keyDateInputSchema,
@@ -29,6 +31,7 @@ import {
 } from "@/lib/crm/deals";
 import { createBroker, getBroker, updateBroker } from "@/lib/crm/brokers";
 import { addGuarantor, deleteGuarantor, updateGuarantor } from "@/lib/crm/guarantors";
+import { addSecurity, deleteSecurity, updateSecurity } from "@/lib/crm/securities";
 import { addKeyDate, completeKeyDate, deleteKeyDate, updateKeyDate } from "@/lib/crm/keyDates";
 import { addDriveLink, deleteDriveLink } from "@/lib/crm/driveLinks";
 import { completeTask, createTask } from "@/lib/crm/tasks";
@@ -69,13 +72,14 @@ export async function createDealAction(raw: unknown): Promise<
   | { ok: false; error: string }
 > {
   try {
-    const input = dealInputSchema.parse(raw);
+    const { security_address, ...input } = dealCreateSchema.parse(raw);
     const supabase = await createClient();
 
     // Stats before insert; the new deal counts as +1 submitted and +1 live.
     const broker = await getBroker(supabase, input.broker_id);
     if (!broker) return { ok: false, error: "Broker not found" };
     const deal = await createDeal(supabase, input);
+    if (security_address) await addSecurity(supabase, { deal_id: deal.id, address: security_address });
 
     const suggested = suggestBrokerPromotion({
       currentStage: broker.stage,
@@ -127,7 +131,6 @@ const INLINE_FIELDS = [
   "borrower_contact_name",
   "borrower_contact_email",
   "borrower_contact_phone",
-  "security_address",
   "loan_amount",
   "product",
   "funder",
@@ -148,6 +151,22 @@ export async function updateDealFieldAction(dealId: string, field: string, value
     const supabase = await createClient();
     await updateDeal(supabase, id, patch);
     revalidateDeal(id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// Reassign the deal to a different broker. Both brokers' stats views shift,
+// so their record pages revalidate too.
+export async function changeDealBrokerAction(dealId: string, brokerId: string): Promise<Result> {
+  try {
+    const id = uuid.parse(dealId);
+    const broker = uuid.parse(brokerId);
+    const supabase = await createClient();
+    await updateDeal(supabase, id, { broker_id: broker });
+    revalidateDeal(id);
+    revalidatePath(`/brokers/${broker}`);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
@@ -274,6 +293,49 @@ export async function deleteGuarantorAction(dealId: string, guarantorId: string)
     const id = uuid.parse(guarantorId);
     const supabase = await createClient();
     await deleteGuarantor(supabase, id);
+    revalidateDeal(parentId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Securities (any number per deal)
+// ---------------------------------------------------------------------------
+
+export async function addSecurityAction(raw: unknown): Promise<Result> {
+  try {
+    const input = dealSecurityInputSchema.parse(raw);
+    const supabase = await createClient();
+    await addSecurity(supabase, input);
+    revalidateDeal(input.deal_id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+export async function updateSecurityAction(dealId: string, securityId: string, raw: unknown): Promise<Result> {
+  try {
+    const parentId = uuid.parse(dealId);
+    const id = uuid.parse(securityId);
+    const input = dealSecurityUpdateSchema.parse(raw);
+    const supabase = await createClient();
+    await updateSecurity(supabase, id, input);
+    revalidateDeal(parentId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+export async function deleteSecurityAction(dealId: string, securityId: string): Promise<Result> {
+  try {
+    const parentId = uuid.parse(dealId);
+    const id = uuid.parse(securityId);
+    const supabase = await createClient();
+    await deleteSecurity(supabase, id);
     revalidateDeal(parentId);
     return { ok: true };
   } catch (err) {

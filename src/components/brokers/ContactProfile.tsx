@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import type { ContactDetail } from "@/lib/crm/contacts";
 import type { ContactTypeRow, DriveLinkRow } from "@/lib/database.types";
@@ -50,7 +49,6 @@ export function ContactProfile({
   tasks: TaskItem[];
   driveLinks: DriveLinkRow[];
 }) {
-  const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
   const [logOpen, setLogOpen] = useState(false);
 
@@ -62,11 +60,8 @@ export function ContactProfile({
   const activity = contact.interactions.filter((i) => i.type !== "email");
   const dealOptions = contact.deals.map((d) => ({ id: d.id, name: d.name }));
 
-  const save = (field: string): InlineSave => async (value: string) => {
-    const res = await updateContactFieldAction(contact.id, field, value);
-    if (res.ok) router.refresh();
-    return res;
-  };
+  // The action revalidates the record path — no extra router.refresh needed.
+  const save = (field: string): InlineSave => async (value: string) => updateContactFieldAction(contact.id, field, value);
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "overview", label: "Overview" },

@@ -31,6 +31,7 @@ import {
   updateDeal,
 } from "../src/lib/crm/deals";
 import { addGuarantor, deleteGuarantor, listGuarantors, updateGuarantor } from "../src/lib/crm/guarantors";
+import { addSecurity, deleteSecurity, listSecurities, updateSecurity } from "../src/lib/crm/securities";
 import { addKeyDate, completeKeyDate, listUpcomingKeyDates } from "../src/lib/crm/keyDates";
 import { addDriveLink, deleteDriveLink, listDriveLinks } from "../src/lib/crm/driveLinks";
 import { logInteraction } from "../src/lib/crm/interactions";
@@ -180,6 +181,17 @@ async function main() {
     await deleteGuarantor(db, g3.id);
     check("deleteGuarantor", (await listGuarantors(db, deal.id)).length === 2);
 
+    // --- Securities (any number per deal) -------------------------------------
+    console.log("Securities:");
+    const s1 = await addSecurity(db, { deal_id: deal.id, address: `${MARK} 1 Test St, Sydney` });
+    const s2 = await addSecurity(db, { deal_id: deal.id, address: `${MARK} 2 Probe Ave, Melbourne` });
+    createdIds.push(s1.id, s2.id);
+    check("two securities added", (await listSecurities(db, deal.id)).length === 2);
+    const s1u = await updateSecurity(db, s1.id, { address: `${MARK} 1A Test St, Sydney` });
+    check("updateSecurity", s1u.address === `${MARK} 1A Test St, Sydney`);
+    await deleteSecurity(db, s2.id);
+    check("deleteSecurity", (await listSecurities(db, deal.id)).length === 1);
+
     // --- Key dates -----------------------------------------------------------
     console.log("Key dates:");
     const kd = await addKeyDate(db, { deal_id: deal.id, label: `${MARK} valuation`, due_date: today, remind_days_before: 3 });
@@ -252,6 +264,8 @@ async function main() {
     check("deleteDeal", (await getDeal(db, deal.id)) === null);
     const { data: orphanGuarantors } = await db.from("guarantors").select("id").eq("deal_id", deal.id);
     check("guarantors cascade with the deal", (orphanGuarantors?.length ?? 0) === 0);
+    const { data: orphanSecurities } = await db.from("deal_securities").select("id").eq("deal_id", deal.id);
+    check("securities cascade with the deal", (orphanSecurities?.length ?? 0) === 0);
     const { data: keptInteraction } = await db.from("interactions").select("id, deal_id").eq("id", interaction.id).single();
     check("interactions survive deal delete", !!keptInteraction);
     await deleteTask(db, task.id);

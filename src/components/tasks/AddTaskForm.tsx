@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import type { CreateTask } from "@/components/tasks/types";
@@ -22,7 +21,6 @@ export function AddTaskForm({
   onDone?: () => void;
   className?: string;
 }) {
-  const router = useRouter();
   const titleRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
@@ -43,7 +41,6 @@ export function AddTaskForm({
         setTitle("");
         setDue("");
         setError(null);
-        router.refresh();
         onDone?.();
       } else {
         setError(res.error ?? "Couldn’t add the task.");

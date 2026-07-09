@@ -4,6 +4,7 @@ import type {
   DealLossReason,
   DealPipelineStage,
   DealRow,
+  DealSecurityRow,
   DealStatus,
   DealUpdate,
   DriveLinkRow,
@@ -20,6 +21,7 @@ export type DealDetail = DealWithBroker & {
   key_dates: KeyDateRow[];
   drive_links: DriveLinkRow[];
   guarantors: GuarantorRow[];
+  securities: DealSecurityRow[];
 };
 
 // The broker on a deal is a Broker-type contact (FK column keeps the name
@@ -40,12 +42,14 @@ export async function listDeals(
 }
 
 // Loan Book: settled deals ordered by maturity (soonest first, nulls last).
-export async function listLoanBook(db: Db): Promise<(DealWithBroker & { key_dates: KeyDateRow[] })[]> {
+export async function listLoanBook(
+  db: Db,
+): Promise<(DealWithBroker & { key_dates: KeyDateRow[]; securities: { address: string }[] })[]> {
   const res = await db
     .from("deals")
-    .select(`${DEAL_WITH_BROKER}, key_dates(*)`)
+    .select(`${DEAL_WITH_BROKER}, key_dates(*), securities:deal_securities(address)`)
     .eq("status", "settled")
-    .returns<(DealWithBroker & { key_dates: KeyDateRow[] })[]>();
+    .returns<(DealWithBroker & { key_dates: KeyDateRow[]; securities: { address: string }[] })[]>();
   const deals = assertOk(res.data, res.error, "Loading loan book");
   return deals
     .map((d) => ({ ...d, key_dates: d.key_dates.filter((k) => !k.completed).sort((a, b) => a.due_date.localeCompare(b.due_date)) }))
@@ -57,9 +61,9 @@ export async function listLoanBook(db: Db): Promise<(DealWithBroker & { key_date
 export async function getDeal(db: Db, id: string): Promise<DealDetail | null> {
   const { data, error } = await db
     .from("deals")
-    .select(`${DEAL_WITH_BROKER}, key_dates(*), guarantors(*)`)
+    .select(`${DEAL_WITH_BROKER}, key_dates(*), guarantors(*), securities:deal_securities(*)`)
     .eq("id", id)
-    .maybeSingle<DealWithBroker & { key_dates: KeyDateRow[]; guarantors: GuarantorRow[] }>();
+    .maybeSingle<DealWithBroker & { key_dates: KeyDateRow[]; guarantors: GuarantorRow[]; securities: DealSecurityRow[] }>();
   if (error) throw new Error(`Loading deal: ${error.message}`);
   if (!data) return null;
   const deal = data;
@@ -75,6 +79,7 @@ export async function getDeal(db: Db, id: string): Promise<DealDetail | null> {
     ...deal,
     key_dates: [...deal.key_dates].sort((a, b) => a.due_date.localeCompare(b.due_date)),
     guarantors: [...deal.guarantors].sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    securities: [...deal.securities].sort((a, b) => a.created_at.localeCompare(b.created_at)),
     drive_links: assertOk(links.data, links.error, "Loading drive links"),
   };
 }

@@ -32,6 +32,7 @@ import {
   companyUpdateSchema,
   contactInputSchema,
   contactUpdateSchema,
+  dealCreateSchema,
   dealInputSchema,
   driveLinkInputSchema,
   guarantorInputSchema,
@@ -58,6 +59,7 @@ import {
   updateCompany,
 } from "@/lib/crm/companies";
 import { createDeal, getDeal, listDeals, resolveDealId, updateDeal } from "@/lib/crm/deals";
+import { addSecurity, deleteSecurity } from "@/lib/crm/securities";
 import { addGuarantor } from "@/lib/crm/guarantors";
 import { createTask, listTasks, updateTask } from "@/lib/crm/tasks";
 import { logInteraction } from "@/lib/crm/interactions";
@@ -72,6 +74,8 @@ import {
   addContactTypeShape,
   addDriveLinkShape,
   addGuarantorShape,
+  addSecurityShape,
+  removeSecurityShape,
   addKeyDateShape,
   completeKeyDateShape,
   completeTaskShape,
@@ -419,8 +423,9 @@ function buildServer(db: Db, actorId: string | null): McpServer {
     guarded(async (args) => {
       const { broker, ...fields } = args;
       const brokerId = await resolveContactId(db, broker);
-      const input = dealInputSchema.parse({ ...fields, broker_id: brokerId });
+      const { security_address, ...input } = dealCreateSchema.parse({ ...fields, broker_id: brokerId });
       const deal = await createDeal(db, { ...input, ...created });
+      if (security_address) await addSecurity(db, { deal_id: deal.id, address: security_address, ...created });
 
       // Promotion hint is best-effort advice, never an action.
       let promotionHint: string | null = null;
@@ -514,6 +519,28 @@ function buildServer(db: Db, actorId: string | null): McpServer {
   );
 
   // ------------------------------------------------------------- guarantors --
+
+  server.registerTool(
+    "add_deal_security",
+    {
+      description: "Add a security property address to a deal (deals can hold any number). Existing ones are on get_deal → securities.",
+      inputSchema: addSecurityShape,
+    },
+    guarded(async (args) => {
+      const dealId = await resolveDealId(db, args.deal);
+      const security = await addSecurity(db, { deal_id: dealId, address: args.address, ...created });
+      return toJson({ security });
+    }),
+  );
+
+  server.registerTool(
+    "remove_deal_security",
+    { description: "Remove a security from a deal by its id (see get_deal → securities).", inputSchema: removeSecurityShape },
+    guarded(async (args) => {
+      await deleteSecurity(db, args.security_id);
+      return toJson({ removed: args.security_id });
+    }),
+  );
 
   server.registerTool(
     "add_guarantor",

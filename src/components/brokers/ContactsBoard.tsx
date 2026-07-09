@@ -9,7 +9,7 @@ import { Badge, BROKER_STAGE_TONE } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 
-type View = "kanban" | "list";
+type View = "kanban" | "list" | "referrers";
 type Density = "comfortable" | "compact";
 
 function matchesSearch(c: ContactWithStats, q: string): boolean {
@@ -45,11 +45,12 @@ export function ContactsBoard({ contacts, types }: { contacts: ContactWithStats[
   return (
     <div>
       <div className="mb-4 flex flex-col gap-3">
-        <div className="max-w-xs">
+        <div className="max-w-sm">
           <SegmentedControl<View>
             options={[
               { value: "kanban", label: "Kanban" },
               { value: "list", label: "List" },
+              { value: "referrers", label: "Referrers" },
             ]}
             value={view}
             onChange={setView}
@@ -102,6 +103,9 @@ export function ContactsBoard({ contacts, types }: { contacts: ContactWithStats[
 
       {view === "kanban" ? (
         <Kanban contacts={contacts} q={q} />
+      ) : view === "referrers" ? (
+        // Everyone marked Referrer, regardless of the list filters.
+        <List contacts={contacts} q={q} typeFilter="Referrer" locationFilter="all" density={density} />
       ) : (
         <List contacts={contacts} q={q} typeFilter={typeFilter} locationFilter={locationFilter} density={density} />
       )}

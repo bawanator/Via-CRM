@@ -11,6 +11,7 @@ import {
   contactInputSchema,
   contactUpdateSchema,
   dealFunderSchema,
+  dealCreateSchema,
   dealInputSchema,
   dealLossReasonSchema,
   dealProductSchema,
@@ -121,7 +122,7 @@ export const getDealShape = {
 
 export const createDealShape = {
   broker: idOrName.describe("Introducing broker — UUID or (partial) name"),
-  ...dealInputSchema.omit({ broker_id: true }).shape,
+  ...dealCreateSchema.omit({ broker_id: true }).shape,
 };
 
 export const updateDealShape = {
@@ -142,6 +143,17 @@ export const settleDealShape = {
 export const loseDealShape = {
   id_or_name: idOrName.describe("Deal UUID or (partial) name"),
   loss_reason: dealLossReasonSchema.describe("Required reason the deal was closed / lost"),
+};
+
+// ------------------------------------------------------------- securities --
+
+export const addSecurityShape = {
+  deal: idOrName.describe("Deal UUID or (partial) name"),
+  address: z.string().trim().min(1).max(500).describe("Security property address"),
+};
+
+export const removeSecurityShape = {
+  security_id: z.string().uuid().describe("deal_securities row id (see get_deal → securities)"),
 };
 
 // ------------------------------------------------------------- guarantors --

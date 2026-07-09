@@ -50,7 +50,7 @@ export default async function LoanBookPage() {
     return {
       id: loan.id,
       name: loan.name,
-      securityAddress: loan.security_address,
+      securityAddress: loan.securities.map((sec) => sec.address).join(" · ") || null,
       brokerName: loan.broker?.full_name ?? null,
       borrowerEntity: loan.borrower_entity,
       borrowerContactName: loan.borrower_contact_name,

@@ -111,7 +111,6 @@ export type DealRow = RowMeta & {
   borrower_contact_name: string | null;
   borrower_contact_email: string | null;
   borrower_contact_phone: string | null;
-  security_address: string | null;
   loan_amount: number | null;
   product: DealProduct | null;
   funder: DealFunder | null;
@@ -133,7 +132,6 @@ export type DealInsert = Partial<RowMeta> & {
   borrower_contact_name?: string | null;
   borrower_contact_email?: string | null;
   borrower_contact_phone?: string | null;
-  security_address?: string | null;
   loan_amount?: number | null;
   product?: DealProduct | null;
   funder?: DealFunder | null;
@@ -147,6 +145,24 @@ export type DealInsert = Partial<RowMeta> & {
 };
 
 export type DealUpdate = Partial<DealInsert>;
+
+// ---------------------------------------------------------------------------
+// Deal securities (child of deals; the security properties on a deal)
+// ---------------------------------------------------------------------------
+
+export type DealSecurityRow = RowMeta & {
+  id: string;
+  deal_id: string;
+  address: string;
+};
+
+export type DealSecurityInsert = Partial<RowMeta> & {
+  id?: string;
+  deal_id: string;
+  address: string;
+};
+
+export type DealSecurityUpdate = Partial<DealSecurityInsert>;
 
 // ---------------------------------------------------------------------------
 // Guarantors (child of deals; max 3 enforced in app)
@@ -335,6 +351,7 @@ export type Database = {
       contact_types: Table<ContactTypeRow, { name: string; sort?: number }, Partial<ContactTypeRow>>;
       deals: Table<DealRow, DealInsert, DealUpdate>;
       guarantors: Table<GuarantorRow, GuarantorInsert, GuarantorUpdate>;
+      deal_securities: Table<DealSecurityRow, DealSecurityInsert, DealSecurityUpdate>;
       tasks: Table<TaskRow, TaskInsert, TaskUpdate>;
       saved_reports: Table<SavedReportRow, SavedReportInsert, SavedReportUpdate>;
       key_dates: Table<KeyDateRow, KeyDateInsert, KeyDateUpdate>;

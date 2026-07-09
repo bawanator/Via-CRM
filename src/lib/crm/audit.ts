@@ -7,6 +7,7 @@ export const AUDITED_TABLES = [
   "deals",
   "tasks",
   "guarantors",
+  "deal_securities",
   "key_dates",
   "drive_links",
   "interactions",

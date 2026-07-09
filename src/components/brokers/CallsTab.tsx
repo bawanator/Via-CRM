@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import type { InteractionRow } from "@/lib/database.types";
 import { todayISO } from "@/lib/dates";
@@ -25,7 +24,6 @@ export function CallsTab({
   calls: InteractionRow[];
   deals: { id: string; name: string }[];
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -53,7 +51,6 @@ export function CallsTab({
       if (res.ok) {
         setError(null);
         setOpen(false);
-        router.refresh();
       } else {
         setError(res.error);
       }
@@ -86,9 +83,7 @@ export function CallsTab({
               interaction={interaction}
               showIcon={false}
               onDelete={async () => {
-                const res = await deleteInteractionAction(interaction.id, brokerId);
-                if (res.ok) router.refresh();
-                return res;
+                return deleteInteractionAction(interaction.id, brokerId);
               }}
             />
           ))
