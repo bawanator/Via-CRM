@@ -45,8 +45,9 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Everything except static assets, PWA files and the cron endpoint
-    // (cron authenticates with its own bearer secret).
-    "/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js|api/cron/).*)",
+    // Everything except static assets, PWA files, the cron endpoint (bearer
+    // secret) and the remote MCP endpoint (capability-URL token) — both
+    // authenticate themselves; the Supabase session redirect would break them.
+    "/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js|api/cron/|api/mcp/).*)",
   ],
 };
