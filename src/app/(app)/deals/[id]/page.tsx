@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getDeal, type DealDetail } from "@/lib/crm/deals";
-import { listContacts } from "@/lib/crm/contacts";
+import { listBrokerOptions } from "@/lib/crm/contacts";
 import { listInteractionsForDeal } from "@/lib/crm/interactions";
 import { listTasks } from "@/lib/crm/tasks";
 import { isUuid } from "@/lib/crm/db";
-import { DEAL_STATUS_LABELS, INTERACTION_TYPE_LABELS, LOSS_REASON_LABELS } from "@/lib/domain";
+import { DEAL_STATUS_LABELS, INTERACTION_TYPE_LABELS } from "@/lib/domain";
 import { formatDate, formatDateTime, maturityCountdown } from "@/lib/format";
 import { Badge, DEAL_STATUS_TONE } from "@/components/ui/Badge";
 import { DetailRow, GroupedSection, LinkRow, Row } from "@/components/ui/GroupedList";
@@ -20,6 +20,7 @@ import { SecuritiesSection } from "@/components/deals/SecuritiesSection";
 import { KeyDatesSection } from "@/components/deals/KeyDatesSection";
 import { NotesSection } from "@/components/deals/NotesSection";
 import { StagePicker } from "@/components/deals/StagePicker";
+import { LossReasonRow } from "@/components/deals/LossReasonRow";
 import { BackButton } from "@/components/common/BackButton";
 import type { InteractionRow, InteractionType } from "@/lib/database.types";
 import type { TaskItem } from "@/components/tasks/types";
@@ -84,15 +85,16 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   if (!isUuid(id)) notFound();
 
   const supabase = await createClient();
-  const deal: DealDetail | null = await getDeal(supabase, id);
-  if (!deal) notFound();
 
-  const [interactions, dealTasks, brokers] = await Promise.all([
+  // All four run in parallel — getDeal no longer gates the others (a missing
+  // deal just makes the rest wasted work on a 404, which is rare and cheap).
+  const [deal, interactions, dealTasks, brokerOptions] = await Promise.all([
+    getDeal(supabase, id),
     listInteractionsForDeal(supabase, id),
     listTasks(supabase, { dealId: id }),
-    listContacts(supabase, { type: "Broker" }),
+    listBrokerOptions(supabase),
   ]);
-  const brokerOptions = brokers.map((b) => ({ id: b.id, full_name: b.full_name }));
+  if (!deal) notFound();
   const tasks: TaskItem[] = dealTasks.map((t) => ({
     id: t.id,
     title: t.title,
@@ -121,7 +123,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
 
       {deal.status === "lost" ? (
         <GroupedSection header={DEAL_STATUS_LABELS.lost}>
-          <DetailRow label="Reason" value={deal.loss_reason ? LOSS_REASON_LABELS[deal.loss_reason] : "—"} />
+          <LossReasonRow dealId={deal.id} reason={deal.loss_reason} />
         </GroupedSection>
       ) : null}
 

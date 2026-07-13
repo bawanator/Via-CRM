@@ -8,6 +8,7 @@ import {
   brokerInputSchema,
   brokerStageSchema,
   dealCreateSchema,
+  dealLossReasonSchema,
   dealUpdateSchema,
   driveLinkInputSchema,
   dealSecurityInputSchema,
@@ -210,6 +211,21 @@ export async function loseDealAction(dealId: string, raw: unknown): Promise<Resu
     const { loss_reason } = loseDealSchema.parse(raw);
     const supabase = await createClient();
     await loseDeal(supabase, id, loss_reason);
+    revalidateDeal(id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// Change the loss reason on an already-lost deal (the editable "Reason" row).
+// Status stays 'lost', so the lost ⇔ loss_reason invariant is preserved.
+export async function changeLossReasonAction(dealId: string, reason: unknown): Promise<Result> {
+  try {
+    const id = uuid.parse(dealId);
+    const loss_reason = dealLossReasonSchema.parse(reason);
+    const supabase = await createClient();
+    await updateDeal(supabase, id, { loss_reason });
     revalidateDeal(id);
     return { ok: true };
   } catch (err) {

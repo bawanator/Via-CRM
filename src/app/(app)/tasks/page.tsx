@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { listTasks, type TaskWithRefs } from "@/lib/crm/tasks";
-import { listBrokers } from "@/lib/crm/contacts";
+import { listBrokerOptions } from "@/lib/crm/contacts";
 import { todayISO } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TasksView, type TaskGroup } from "@/components/tasks/TasksView";
@@ -24,8 +24,7 @@ function toItem(t: TaskWithRefs): TaskItem {
 
 export default async function TasksPage() {
   const supabase = await createClient();
-  const [all, brokers] = await Promise.all([listTasks(supabase), listBrokers(supabase)]);
-  const mentionOptions = brokers.map((b) => ({ id: b.id, full_name: b.full_name }));
+  const [all, mentionOptions] = await Promise.all([listTasks(supabase), listBrokerOptions(supabase)]);
   const today = todayISO();
 
   const open = all.filter((t) => !t.completed);

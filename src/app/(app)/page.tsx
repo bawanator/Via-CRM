@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { whatsDue } from "@/lib/crm/today";
 import { emailsSentToday, overviewStats } from "@/lib/crm/overview";
-import { listBrokers } from "@/lib/crm/contacts";
+import { listBrokerOptions } from "@/lib/crm/contacts";
 import { APP_TIMEZONE } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -37,12 +37,11 @@ async function TasksCompletedCard({ count }: { count: number }) {
 
 export default async function TodayPage() {
   const supabase = await createClient();
-  const [data, stats, brokers] = await Promise.all([
+  const [data, stats, mentionOptions] = await Promise.all([
     whatsDue(supabase),
     overviewStats(supabase),
-    listBrokers(supabase),
+    listBrokerOptions(supabase),
   ]);
-  const mentionOptions = brokers.map((b) => ({ id: b.id, full_name: b.full_name }));
 
   const longDate = new Intl.DateTimeFormat("en-AU", {
     weekday: "long",

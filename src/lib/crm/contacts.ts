@@ -89,6 +89,20 @@ export async function listBrokers(
   return listContacts(db, { ...filter, type: DEFAULT_CONTACT_TYPE });
 }
 
+// Just {id, full_name} for pickers and "@" mentions — no company join and no
+// broker_stats round trip (which listBrokers/listContacts always pay). Used on
+// hot paths (deal broker dropdown, Today/Tasks mention menus) where the stats
+// are never shown, so this is materially cheaper per page load.
+export type BrokerOptionRow = { id: string; full_name: string };
+export async function listBrokerOptions(db: Db): Promise<BrokerOptionRow[]> {
+  const { data, error } = await db
+    .from("contacts")
+    .select("id, full_name")
+    .eq("type", DEFAULT_CONTACT_TYPE)
+    .order("full_name");
+  return assertOk(data, error, "Listing broker options");
+}
+
 // Returns null when the contact doesn't exist; throws on real failures —
 // callers must not turn a database outage into a 404.
 export async function getContact(db: Db, id: string): Promise<ContactDetail | null> {
