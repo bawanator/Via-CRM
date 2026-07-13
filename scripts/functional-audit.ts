@@ -146,8 +146,8 @@ async function main() {
     createdIds.push(deal.id);
     check("createDeal defaults live/scenario", deal.status === "live" && deal.pipeline_stage === "scenario");
 
-    const moved = await moveDealStage(db, deal.id, "credit");
-    check("moveDealStage", moved.pipeline_stage === "credit");
+    const moved = await moveDealStage(db, deal.id, "docs");
+    check("moveDealStage", moved.pipeline_stage === "docs");
 
     const patch = dealUpdateSchema.parse({ notes: `${MARK} notes save` });
     const noted = await updateDeal(db, deal.id, patch);
@@ -231,7 +231,7 @@ async function main() {
     for (const metric of metrics) {
       try {
         // stage_progression is the one metric with a required parameter.
-        const spec = metric === "stage_progression" ? { metric, target_stage: "credit" as const } : { metric };
+        const spec = metric === "stage_progression" ? { metric, target_stage: "term_sheet" as const } : { metric };
         const r = await runReport(db, spec);
         check(`report ${metric}`, typeof r.total === "number" && Array.isArray(r.rows));
       } catch (err) {

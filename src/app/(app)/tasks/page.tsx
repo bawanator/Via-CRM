@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { listTasks, type TaskWithRefs } from "@/lib/crm/tasks";
+import { listBrokers } from "@/lib/crm/contacts";
 import { todayISO } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TasksView, type TaskGroup } from "@/components/tasks/TasksView";
@@ -23,7 +24,8 @@ function toItem(t: TaskWithRefs): TaskItem {
 
 export default async function TasksPage() {
   const supabase = await createClient();
-  const all = await listTasks(supabase);
+  const [all, brokers] = await Promise.all([listTasks(supabase), listBrokers(supabase)]);
+  const mentionOptions = brokers.map((b) => ({ id: b.id, full_name: b.full_name }));
   const today = todayISO();
 
   const open = all.filter((t) => !t.completed);
@@ -52,7 +54,12 @@ export default async function TasksPage() {
           {open.length} open · synced with Google Tasks
         </p>
       </PageHeader>
-      <TasksView groups={groups} completed={completed.map(toItem)} hrefById={hrefById} />
+      <TasksView
+        groups={groups}
+        completed={completed.map(toItem)}
+        hrefById={hrefById}
+        mentionOptions={mentionOptions}
+      />
     </div>
   );
 }

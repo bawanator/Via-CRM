@@ -13,9 +13,16 @@ export const dealLossReasonSchema = z.enum([
   "ghosted",
   "unknown",
 ]);
-export const dealProductSchema = z.enum(["bridging", "equity_release", "purchase", "residual_stock", "other"]);
+export const dealProductSchema = z.enum([
+  "bridging",
+  "equity_release",
+  "purchase",
+  "residual_stock",
+  "refinance",
+  "other",
+]);
 export const dealFunderSchema = z.enum(["funder_1", "funder_2", "funder_3", "other"]);
-export const pipelineStageSchema = z.enum(["scenario", "term_sheet", "credit", "docs", "settlement"]);
+export const pipelineStageSchema = z.enum(["scenario", "term_sheet", "docs", "settlement"]);
 export const interactionTypeSchema = z.enum(["email", "call", "meeting", "note"]);
 export const linkParentTypeSchema = z.enum(["deal", "contact"]);
 
@@ -53,6 +60,11 @@ const optionalUrl = z.preprocess(
 const optionalAmount = z.preprocess(
   (v) => (v === "" || v === undefined ? null : typeof v === "string" ? Number(v.replace(/[,$\s]/g, "")) : v),
   z.number().finite().nonnegative().nullable().optional(),
+);
+// A percentage (e.g. gross LVR). Strips a trailing "%"; capped at 200.
+const optionalPercent = z.preprocess(
+  (v) => (v === "" || v === undefined ? null : typeof v === "string" ? Number(v.replace(/[%,\s]/g, "")) : v),
+  z.number().finite().min(0).max(200).nullable().optional(),
 );
 
 // ---------------------------------------------------------------------------
@@ -95,6 +107,7 @@ export const dealInputSchema = z.object({
   borrower_contact_email: optionalEmail,
   borrower_contact_phone: optionalText,
   loan_amount: optionalAmount,
+  gross_lvr: optionalPercent,
   product: dealProductSchema.nullable().optional(),
   funder: dealFunderSchema.nullable().optional(),
   pipeline_stage: pipelineStageSchema.optional(),

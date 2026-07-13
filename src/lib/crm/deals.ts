@@ -165,7 +165,6 @@ export async function countLiveDealsByStage(db: Db): Promise<Record<DealPipeline
   const counts: Record<DealPipelineStage, number> = {
     scenario: 0,
     term_sheet: 0,
-    credit: 0,
     docs: 0,
     settlement: 0,
   };

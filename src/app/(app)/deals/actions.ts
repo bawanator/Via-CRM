@@ -132,6 +132,7 @@ const INLINE_FIELDS = [
   "borrower_contact_email",
   "borrower_contact_phone",
   "loan_amount",
+  "gross_lvr",
   "product",
   "funder",
   "notes",

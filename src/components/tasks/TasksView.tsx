@@ -4,7 +4,7 @@ import { TaskList } from "@/components/tasks/TaskList";
 import { AddTaskForm } from "@/components/tasks/AddTaskForm";
 import { CompletedTasks } from "@/components/tasks/CompletedTasks";
 import { EmptyState } from "@/components/ui/EmptyState";
-import type { TaskItem } from "@/components/tasks/types";
+import type { MentionOption, TaskItem } from "@/components/tasks/types";
 import { createTaskAction, deleteTaskAction, toggleTaskAction, updateTaskAction } from "@/app/(app)/tasks/actions";
 
 export type TaskGroup = { header: string; tasks: TaskItem[] };
@@ -16,15 +16,17 @@ export function TasksView({
   groups,
   completed,
   hrefById,
+  mentionOptions,
 }: {
   groups: TaskGroup[];
   completed: TaskItem[];
   hrefById: Record<string, string>;
+  mentionOptions?: MentionOption[];
 }) {
   const openCount = groups.reduce((n, g) => n + g.tasks.length, 0);
   return (
     <div>
-      <AddTaskForm onCreate={createTaskAction} className="mb-5" />
+      <AddTaskForm onCreate={createTaskAction} className="mb-5" mentionOptions={mentionOptions} />
       {openCount === 0 ? (
         <EmptyState title="No open tasks" hint="Anything you add here also syncs to Google Tasks." />
       ) : (

@@ -95,6 +95,14 @@ export function DealDetailsSection({ deal, brokerOptions }: { deal: DealWithBrok
           placeholder="—"
         />
       </InlineRow>
+      <InlineRow label="Gross LVR">
+        <InlineText
+          value={deal.gross_lvr != null ? `${deal.gross_lvr}%` : null}
+          onSave={save("gross_lvr")}
+          ariaLabel="Gross LVR"
+          placeholder="—"
+        />
+      </InlineRow>
       <InlineRow label="Product">
         <InlineSelect value={deal.product} options={productOptions} onSave={save("product")} ariaLabel="Product" placeholder="None" />
       </InlineRow>

@@ -120,7 +120,7 @@ const STAGE_MAP: Record<string, DealPipelineStage> = {
   Lead: "scenario",
   "Indicative Terms": "term_sheet",
   "Final Term Sheet": "term_sheet",
-  "In progress": "credit",
+  "In progress": "term_sheet",
   "Pre-settlement": "docs",
 };
 

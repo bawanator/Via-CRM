@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { TaskList } from "@/components/tasks/TaskList";
 import { AddTaskForm } from "@/components/tasks/AddTaskForm";
-import type { TaskItem } from "@/components/tasks/types";
+import type { MentionOption, TaskItem } from "@/components/tasks/types";
 import { createTaskAction, deleteTaskAction, toggleTaskAction, updateTaskAction } from "@/app/(app)/tasks/actions";
 
 // The day's to-do list, top of the Today screen: the open tasks (each with a
@@ -15,10 +15,12 @@ export function TodayTasks({
   tasks,
   hrefById,
   totalOpen,
+  mentionOptions,
 }: {
   tasks: TaskItem[];
   hrefById: Record<string, string>;
   totalOpen?: number;
+  mentionOptions?: MentionOption[];
 }) {
   const hasTasks = tasks.length > 0;
   return (
@@ -29,7 +31,7 @@ export function TodayTasks({
           View all{typeof totalOpen === "number" && totalOpen > tasks.length ? ` (${totalOpen})` : ""}
         </Link>
       </div>
-      <AddTaskForm onCreate={createTaskAction} className={hasTasks ? "mb-2" : "mb-5"} />
+      <AddTaskForm onCreate={createTaskAction} className={hasTasks ? "mb-2" : "mb-5"} mentionOptions={mentionOptions} />
       {hasTasks ? (
         <TaskList
           tasks={tasks}

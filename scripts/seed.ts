@@ -337,7 +337,7 @@ async function main() {
       funder: "funder_1",
       notes: "Residual stock facility over 6 unsold units; staged releases against exchanged sales.",
     },
-    "credit",
+    "docs",
   );
   const kurrajong = await seedLiveDeal(
     {
@@ -397,7 +397,7 @@ async function main() {
     security_address: "31 Kembla Street, Wollongong NSW 2500",
     loan_amount: 1_200_000,
     product: "bridging",
-    pipeline_stage: "credit",
+    pipeline_stage: "docs",
     status: "lost",
     loss_reason: "ghosted",
     notes: "Sponsor went quiet after the valuation discussion and never returned docs.",

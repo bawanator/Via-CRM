@@ -12,11 +12,11 @@ export type DealLossReason =
   | "lost_to_competitor"
   | "ghosted"
   | "unknown";
-export type DealProduct = "bridging" | "equity_release" | "purchase" | "residual_stock" | "other";
+export type DealProduct = "bridging" | "equity_release" | "purchase" | "residual_stock" | "refinance" | "other";
 // Funders are code-named. Real names live nowhere in the app. funder_1=HCP,
 // funder_2=First Federal, funder_3=Vest Capital — displayed only as 1/2/3.
 export type DealFunder = "funder_1" | "funder_2" | "funder_3" | "other";
-export type DealPipelineStage = "scenario" | "term_sheet" | "credit" | "docs" | "settlement";
+export type DealPipelineStage = "scenario" | "term_sheet" | "docs" | "settlement";
 export type InteractionType = "email" | "call" | "meeting" | "note";
 export type LinkParentType = "deal" | "contact";
 export type AuditAction = "insert" | "update" | "delete";
@@ -112,6 +112,7 @@ export type DealRow = RowMeta & {
   borrower_contact_email: string | null;
   borrower_contact_phone: string | null;
   loan_amount: number | null;
+  gross_lvr: number | null; // percentage; display-only, no arithmetic
   product: DealProduct | null;
   funder: DealFunder | null;
   pipeline_stage: DealPipelineStage;
@@ -133,6 +134,7 @@ export type DealInsert = Partial<RowMeta> & {
   borrower_contact_email?: string | null;
   borrower_contact_phone?: string | null;
   loan_amount?: number | null;
+  gross_lvr?: number | null;
   product?: DealProduct | null;
   funder?: DealFunder | null;
   pipeline_stage?: DealPipelineStage;

@@ -26,5 +26,9 @@ export type RescheduleTask = (id: string, dueDate: string | null) => Promise<Tas
 export type DeleteTask = (id: string) => Promise<TaskActionResult>;
 
 // Create a task from the inline composer. Owning page supplies the action.
-export type TaskCreateInput = { title: string; due_date: string | null };
+// contact_id links the task to a broker chosen via an "@" mention.
+export type TaskCreateInput = { title: string; due_date: string | null; contact_id?: string | null };
 export type CreateTask = (input: TaskCreateInput) => Promise<TaskActionResult>;
+
+// A broker offered in the composer's "@" mention menu.
+export type MentionOption = { id: string; full_name: string };

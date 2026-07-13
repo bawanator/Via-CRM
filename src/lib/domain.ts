@@ -28,12 +28,11 @@ export const BROKER_STAGE_HELP: Record<BrokerStage, string> = {
 
 // Deal pipeline — starts at Scenario (no Enquiry). Closed/Lost is a terminal
 // board column handled via status, not a pipeline_stage value.
-export const PIPELINE_STAGES: DealPipelineStage[] = ["scenario", "term_sheet", "credit", "docs", "settlement"];
+export const PIPELINE_STAGES: DealPipelineStage[] = ["scenario", "term_sheet", "docs", "settlement"];
 
 export const PIPELINE_STAGE_LABELS: Record<DealPipelineStage, string> = {
   scenario: "Scenario",
   term_sheet: "Term Sheet",
-  credit: "Credit",
   docs: "Docs",
   settlement: "Settlement",
 };
@@ -67,13 +66,21 @@ export const LOSS_REASON_LABELS: Record<DealLossReason, string> = {
   unknown: "Unknown",
 };
 
-export const PRODUCTS: DealProduct[] = ["bridging", "equity_release", "purchase", "residual_stock", "other"];
+export const PRODUCTS: DealProduct[] = [
+  "bridging",
+  "equity_release",
+  "purchase",
+  "residual_stock",
+  "refinance",
+  "other",
+];
 
 export const PRODUCT_LABELS: Record<DealProduct, string> = {
   bridging: "Bridging",
   equity_release: "Equity Release",
   purchase: "Purchase",
   residual_stock: "Residual Stock",
+  refinance: "Refinance",
   other: "Other",
 };
 

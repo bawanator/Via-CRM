@@ -10,6 +10,15 @@ export function formatAmount(amount: number | null): string {
   }).format(amount);
 }
 
+// Compact, at-a-glance figure for column headers etc. — "$7.46m", "$820k".
+// Display only: a rough pipeline aggregate, never used in any calculation.
+export function formatAmountCompact(amount: number | null): string {
+  if (amount == null || amount === 0) return "$0";
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}m`;
+  if (amount >= 1_000) return `$${Math.round(amount / 1_000)}k`;
+  return `$${Math.round(amount)}`;
+}
+
 export function formatDate(dateISO: string | null | undefined): string {
   if (!dateISO) return "—";
   const d = new Date(dateISO.length <= 10 ? dateISO + "T00:00:00" : dateISO);

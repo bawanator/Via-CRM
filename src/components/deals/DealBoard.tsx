@@ -25,7 +25,7 @@ import {
   PIPELINE_STAGES,
   PRODUCT_LABELS,
 } from "@/lib/domain";
-import { formatAmount } from "@/lib/format";
+import { formatAmount, formatAmountCompact } from "@/lib/format";
 import { Badge } from "@/components/ui/Badge";
 import { Sheet } from "@/components/ui/Sheet";
 import type { DealWithBroker } from "@/lib/crm/deals";
@@ -48,6 +48,12 @@ function signature(deals: DealWithBroker[]): string {
 
 function columnOf(deal: DealWithBroker): ColumnId {
   return deal.status === "lost" ? LOST_COLUMN : deal.pipeline_stage;
+}
+
+// Display-only pipeline aggregate for a column header ("Est. $7.46m"). A plain
+// sum of the loan amounts present — never fed into any calculation.
+function columnTotal(deals: DealWithBroker[]): number {
+  return deals.reduce((sum, d) => sum + (d.loan_amount ?? 0), 0);
 }
 
 function isPipelineStage(id: string): id is DealPipelineStage {
@@ -135,19 +141,24 @@ function Column({
   id,
   title,
   count,
+  total,
   children,
 }: {
   id: ColumnId;
   title: string;
   count: number;
+  total: number;
   children: ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <section aria-label={title} className="w-60 shrink-0">
-      <header className="mb-1.5 flex items-baseline justify-between px-1">
-        <h2 className="micro-label">{title}</h2>
-        <span className="text-caption-1 text-label-3">{count}</span>
+      <header className="mb-1.5 flex items-baseline justify-between gap-2 px-1">
+        <h2 className="micro-label min-w-0 truncate">
+          {title}
+          {total > 0 ? <span className="text-label-3"> · Est. {formatAmountCompact(total)}</span> : null}
+        </h2>
+        <span className="text-caption-1 shrink-0 text-label-3">{count}</span>
       </header>
       <div
         ref={setNodeRef}
@@ -273,7 +284,9 @@ export function DealBoard({ deals: initialDeals }: { deals: DealWithBroker[] }) 
           className="card mb-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-separator"
         >
           {ALL_COLUMNS.map(({ id, label }) => {
-            const count = deals.filter((d) => columnOf(d) === id).length;
+            const members = deals.filter((d) => columnOf(d) === id);
+            const count = members.length;
+            const total = columnTotal(members);
             const selected = selectedColumn === id;
             return (
               <button
@@ -294,6 +307,9 @@ export function DealBoard({ deals: initialDeals }: { deals: DealWithBroker[] }) 
                 >
                   {label}
                 </span>
+                {total > 0 ? (
+                  <span className="text-caption-2 leading-tight text-label-3">Est. {formatAmountCompact(total)}</span>
+                ) : null}
               </button>
             );
           })}
@@ -341,7 +357,13 @@ export function DealBoard({ deals: initialDeals }: { deals: DealWithBroker[] }) 
         {PIPELINE_STAGES.map((stage) => {
           const column = deals.filter((d) => d.status === "live" && d.pipeline_stage === stage);
           return (
-            <Column key={stage} id={stage} title={PIPELINE_STAGE_LABELS[stage]} count={column.length}>
+            <Column
+              key={stage}
+              id={stage}
+              title={PIPELINE_STAGE_LABELS[stage]}
+              count={column.length}
+              total={columnTotal(column)}
+            >
               {column.map((deal) => (
                 <DealCard key={deal.id} deal={deal} didDragRef={didDragRef} />
               ))}
@@ -351,7 +373,7 @@ export function DealBoard({ deals: initialDeals }: { deals: DealWithBroker[] }) 
         {(() => {
           const lost = deals.filter((d) => d.status === "lost");
           return (
-            <Column id={LOST_COLUMN} title="Closed / Lost" count={lost.length}>
+            <Column id={LOST_COLUMN} title="Closed / Lost" count={lost.length} total={columnTotal(lost)}>
               {lost.map((deal) => (
                 <DealCard key={deal.id} deal={deal} didDragRef={didDragRef} />
               ))}

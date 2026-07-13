@@ -62,6 +62,7 @@ export function AddDealSheet({ brokers }: { brokers: Broker[] }) {
       name: String(fd.get("name") ?? ""),
       broker_id: brokerId,
       loan_amount: String(fd.get("loan_amount") ?? ""),
+      gross_lvr: String(fd.get("gross_lvr") ?? ""),
       product: (fd.get("product") as string) || null,
       pipeline_stage: String(fd.get("pipeline_stage") ?? "scenario"),
       security_address: String(fd.get("security_address") ?? ""),
@@ -200,6 +201,7 @@ export function AddDealSheet({ brokers }: { brokers: Broker[] }) {
                   <option value={NEW_BROKER}>+ New broker…</option>
                 </SelectField>
                 <TextField label="Loan Amount" name="loan_amount" inputMode="decimal" placeholder="1,500,000" />
+                <TextField label="Gross LVR" name="gross_lvr" inputMode="decimal" placeholder="65%" />
                 <SelectField label="Product" name="product" defaultValue="">
                   <option value="">None</option>
                   {PRODUCTS.map((p) => (
